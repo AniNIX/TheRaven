@@ -1,0 +1,17 @@
+using System;
+using System.Text;
+
+namespace AniNIX.TheRaven {
+
+	public class IRCPongMessage : IRCMessage {
+
+	public IRCPongMessage(String serverString) {
+		incomingIRCString = String.Copy(serverString.Trim());
+		outgoingIRCString = String.Copy(incomingIRCString);
+		char[] arr = outgoingIRCString.ToCharArray();
+		arr[1] = 'O';
+		outgoingIRCString = new String(arr);
+	}
+	
+	}
+}

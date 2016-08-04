@@ -1,0 +1,13 @@
+using System;
+
+namespace AniNIX.TheRaven { 
+	public class AlreadyIdentifiedException : System.Exception {
+
+		/// <summary>
+		/// Create a new AlreadyIdentifiedException to identify this event
+		/// </summary>
+		public AlreadyIdentifiedException(String message) : base(message) { }
+		public AlreadyIdentifiedException() : base(null) { }
+
+	}
+}

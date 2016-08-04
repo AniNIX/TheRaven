@@ -1,0 +1,12 @@
+using System;
+
+namespace AniNIX.TheRaven { 
+	public class RavenTimedOutException : System.Exception {
+
+	/// <summary>
+	/// Create a new RavenTimedOutException to identify this event
+	/// </summary>
+	public RavenTimedOutException(String message) : base(message) { }
+
+	}
+}

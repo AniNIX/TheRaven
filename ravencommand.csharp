@@ -1,0 +1,326 @@
+using System;
+using System.IO;
+using System.Text;
+using System.Diagnostics;
+using System.Collections.Generic;
+
+namespace AniNIX.TheRaven {
+
+    public static class RavenCommand {
+
+        // This is the string we return when people poorly format a command.
+        public static String helpString = "Bad formatting! Type r.help for help.";
+
+        /// <summary>
+        /// This is a contextual match of commands with actions for the bot to take.
+        /// This will be a very long function, but watch for the /* HEADER */ sections to subdivide it.
+        /// <summary>
+        /// <param name=connection>The socket being used represented by a Connection</param>
+        /// <param name=incoming>The message from the IRC server to respond to</param>
+        /// <param name=theRaven>The Raven instance -- we use this to update various lists</param>
+        public static void Respond(Connection connection,IRCServerMessage incoming, Raven theRaven) {
+
+            IRCClientMessage send = new IRCClientMessage();
+
+            /* CANCEL ON BLACKLIST */
+            if (theRaven.blacklist.Contains(incoming.user)) { return; } // Blacklisted people can't do anything.
+
+            //Splits placed here for performance reasons
+            String[] bySpace = incoming.message.Split(' ');
+            String command = bySpace[0];
+
+            /* IDENTIFY the command and IRCClientMessage to send */
+
+            /* COMMON Commands everyone can use */
+            switch (command) {
+                case "r.raven":
+                    send.ActionMsg("quoth, \"Nevermore!\"",incoming.target);
+                    connection.Write(send);
+                    return;
+                case "r.help": 
+                    send.PrivMsg(theRaven.helpText,incoming.target);
+                    connection.Write(send);
+                    return;
+                case "r.magic8":
+                    if (theRaven.magic8 == null) {
+                        send.PrivMsg("Magic8 not loaded",incoming.target);
+                    } else {
+                        int location = theRaven.randomSeed.Next(theRaven.magic8.Length);
+                        send.PrivMsg(theRaven.magic8[location],incoming.target);
+                    }
+                    connection.Write(send);
+                    return;
+                case "r.tinyurl":
+                    if (bySpace.Length < 2) {
+                        send.PrivMsg(theRaven.helpText,incoming.user);
+                    } else {
+                        try {
+                            send.PrivMsg(RavenExecute.Command(String.Format("wget -q -O - \"http://tiny-url.info/api/v1/create?format=text&apikey=\"$(api-keys tinyurl)\"&provider=x_co&url={0}\"",bySpace[1])),incoming.target);
+                        } catch (Exception e) {
+                            ReportMessage.Log(Verbosity.Error,e.ToString());
+                            send.PrivMsg("TinyURL error. Could not get link.",incoming.target);
+                        }
+                    }
+                    connection.Write(send);
+                    return;
+                case "r.msg":
+                    if (bySpace.Length < 2) {
+                        send.PrivMsg(theRaven.helpText,incoming.user);
+                    } else {
+                        if (!theRaven.MailerCount.ContainsKey(incoming.user)) theRaven.MailerCount.Add(incoming.user,0);
+                        if (theRaven.MailerCount[incoming.user] >= 5) {
+                            send.PrivMsg("You cannot send more than 5 messages to the admins between resets. This has been logged.",incoming.user);
+                            connection.Write(send);
+                            ReportMessage.Log(Verbosity.Error,String.Format("!!! {0} tried to send a message but couldn't -- attempts exceeded.",incoming.user));
+                            return;
+                        }
+                        theRaven.MailerCount[incoming.user] = theRaven.MailerCount[incoming.user] + 1;
+                        //Try to append the message to the log
+                        StringBuilder sb = new StringBuilder(bySpace[1]);
+                        for (int i = 2; i < bySpace.Length; i++) {
+                            sb.Append(" ");
+                            sb.Append(bySpace[i]);
+                        }
+                        try { 
+                            StreamWriter writer = new StreamWriter("/var/log/r.msg.log",true);
+                            writer.Write(String.Format("{0} - {1} left a message on {2} in {3}\n{4}\n\n",DateTime.Now,incoming.user,theRaven.Host,incoming.target,sb.ToString()));
+                            writer.Close();
+                        } catch (Exception e) {
+                            ReportMessage.Log(Verbosity.Error,e.Message);
+                            ReportMessage.Log(Verbosity.Error,"Make sure user raven can write to /var/log/r.msg.log");
+                        }
+                        try {
+                            RavenExecute.Command(String.Format("djinni admin \"Page from {0}\"",incoming.user));
+                            send.PrivMsg("Sent!",incoming.user);
+                        } catch (Exception e) {
+                            ReportMessage.Log(Verbosity.Error,e.ToString());
+                            send.PrivMsg("Mailer error. Could not send.",incoming.user);
+                        }
+                    }
+                    connection.Write(send);
+                    return;
+                case "r.uptime":
+                    try {
+                        send.PrivMsg(RavenExecute.Command("uptime"),incoming.target);
+                    } catch (Exception e) {
+                        e.ToString();
+                        send.PrivMsg("Can't get uptime",incoming.target);
+                    }
+                    connection.Write(send);
+                    return;
+                case "r.heartbeat":
+                    try {
+                        String[] byLine = RavenExecute.Command("heartbeat-client").Split('\n');
+                        for (int i = 0; i < byLine.Length; i++) {
+                            send.PrivMsg(byLine[i],incoming.user);
+                            connection.Write(send);
+                        }
+                    } catch (Exception e) {
+                        e.ToString();
+                        send.PrivMsg("Can't get heartbeat",incoming.user);
+                    }
+                    return;
+
+            }
+
+            /* SEARCHES */
+            foreach (String search in theRaven.searches) {
+                if (search == null) continue;
+                String[] byPipe = search.Split('|');
+                if (byPipe.Length < 3) { 
+                    ReportMessage.Log(Verbosity.Error,String.Format("Incomplete search: {0}",search));
+                    continue;
+                }
+                if (byPipe[0].Equals(command)) {
+                    send.PrivMsg(FormatSearch(byPipe[1],incoming.message,byPipe[2]),incoming.target);
+                    connection.Write(send);
+                    return;
+                }
+            }
+
+            /* ADMIN commands are allowed to whitelisted users */
+            if (theRaven.whitelist.Contains(incoming.user) && connection.IsLoggedIn(incoming.user)) switch (command) {
+                case "r.quit":
+                    send.CreateCustomMessage("QUIT :Caw, caw, caw!");
+                    connection.Write(send);
+                    throw new RavenExitedException();
+                case "r.cf":
+                    if (bySpace.Length < 2) {
+                        send.PrivMsg("This is the CrowFacts list of subscribers:",incoming.user);
+                        connection.Write(send);
+                        foreach (String user in theRaven.crowFactsSubscribers) {
+                            send.PrivMsg(user,incoming.user);
+                            connection.Write(send);
+                        }
+                        send.PrivMsg("End subscribers",incoming.user);
+
+                        send.PrivMsg(theRaven.helpText,incoming.target);
+                    } else if (theRaven.crowFacts == null) {
+                        send.PrivMsg("CrowFacts not loaded.",incoming.target);
+                    } else {
+                        if (!theRaven.crowFactsSubscribers.Contains(bySpace[1])) {
+                            theRaven.crowFactsSubscribers.Add(bySpace[1]);
+                            send.PrivMsg(String.Format("{0} has been subscribed to CrowFacts!",bySpace[1]),incoming.target);
+                        } else {
+                            send.PrivMsg("Subscriber already added",incoming.target);
+                        }
+                    }
+                    connection.Write(send);
+                    return;
+                case "r.us":
+                    if (bySpace.Length < 2) {
+                        send.PrivMsg(theRaven.helpText,incoming.target);
+                    } else {
+                        if (theRaven.crowFactsSubscribers.Contains(bySpace[1])) {
+                            theRaven.crowFactsSubscribers.Remove(bySpace[1]);
+                            send.PrivMsg(String.Format("{0} has been unsubscribed.",bySpace[1]),incoming.target);
+                        } else {
+                            send.PrivMsg("No such subscriber",incoming.target);
+                        }
+                    }
+                    connection.Write(send);
+                    return;
+                case "r.join":
+                    if (bySpace.Length < 2) {
+                        send.PrivMsg(theRaven.helpText,incoming.target);
+                    } else {
+                        if (!theRaven.channels.Contains(bySpace[1])) {
+                            theRaven.channels.Add(bySpace[1]);
+                            send.CreateJoinMessage(bySpace[1]);
+                        } else {
+                            send.PrivMsg("Already joined channel",incoming.target);
+                        }
+                    }
+                    connection.Write(send);
+                    return;
+                case "r.part":
+                    if (bySpace.Length < 2) {
+                        send.PrivMsg(theRaven.helpText,incoming.target);
+                    } else {
+                        if (theRaven.channels.Contains(bySpace[1])) {
+                            theRaven.channels.Remove(bySpace[1]);
+                            send.CreatePartMessage(bySpace[1]);
+                        } else {
+                            send.PrivMsg("No such channel",incoming.target);
+                        }
+                    }
+                    connection.Write(send);								
+                    return;
+                case "r.say":
+                    if (bySpace.Length < 3 || !bySpace[1].StartsWith("#")) {
+                        send.PrivMsg(theRaven.helpText,incoming.target);
+                    } else {
+                        StringBuilder newMsg = new StringBuilder(bySpace[2]);
+                        for (int i = 3; i < bySpace.Length; i++) {
+                            newMsg.Append(" ");
+                            newMsg.Append(bySpace[i]);
+                        }
+                        send.PrivMsg(newMsg.ToString(),bySpace[1]);
+                    }
+                    connection.Write(send);
+                    return;
+                case "r.act": 
+                    if (bySpace.Length < 3 || !bySpace[1].StartsWith("#")) {
+                        send.PrivMsg(theRaven.helpText,incoming.target);
+                    } else {
+                        StringBuilder newAction = new StringBuilder(bySpace[2]);
+                        for (int i = 3; i < bySpace.Length; i++) {
+                            newAction.Append(" ");
+                            newAction.Append(bySpace[i]);
+                        }
+                        send.ActionMsg(newAction.ToString(),bySpace[1]);
+                    }
+                    connection.Write(send);
+                    return;
+                case "r.whitelist":
+                    if (bySpace.Length < 2) {
+                        send.PrivMsg("This is the whitelist:",incoming.user);
+                        connection.Write(send);
+                        foreach (String user in theRaven.whitelist) {
+                            send.PrivMsg(user,incoming.user);
+                            connection.Write(send);
+                        }
+                        send.PrivMsg("End whitelist",incoming.user);
+                    } else {
+                        if (!theRaven.whitelist.Contains(bySpace[1]) && !theRaven.blacklist.Contains(bySpace[1])) {
+                            theRaven.whitelist.Add(bySpace[1]);
+                            send.PrivMsg(String.Format("{0} has been whitelisted.",bySpace[1]),incoming.user);
+                        } else {
+                            send.PrivMsg("Already whitelisted or is a blacklisted user",incoming.user);
+                        }
+                    }
+                    connection.Write(send);
+                    return;
+                case "r.blacklist":
+                    if (bySpace.Length < 2) {
+                        send.PrivMsg("This is the blacklist:",incoming.user);
+                        connection.Write(send);
+                        foreach (String user in theRaven.blacklist) {
+                            send.PrivMsg(user,incoming.user);
+                            connection.Write(send);
+                        }
+                        send.PrivMsg("End blacklist",incoming.user);
+                    } else {
+                        if (!theRaven.blacklist.Contains(bySpace[1]) && !theRaven.whitelist.Contains(bySpace[1])) {
+                            theRaven.blacklist.Add(bySpace[1]);
+                            send.PrivMsg(String.Format("{0} has been blacklisted.",bySpace[1]),incoming.user);
+                        } else {
+                            send.PrivMsg("Already blacklisted or is an admin user",incoming.user);
+                        }
+                    }
+                    connection.Write(send);
+                    return;
+                case "r.greylist":
+                    if (bySpace.Length < 2) {
+                        send.PrivMsg(theRaven.helpText,incoming.target);
+                    } else {
+                        if (theRaven.whitelist.Contains(bySpace[1])) {
+                            theRaven.whitelist.Remove(bySpace[1]);
+                            send.PrivMsg("User cleared from whitelist",incoming.user);
+                        } else if (theRaven.blacklist.Contains(bySpace[1])) {
+                            theRaven.blacklist.Remove(bySpace[1]);
+                            send.PrivMsg("User cleared from blacklist",incoming.user);
+                        } else {
+                            send.PrivMsg("No action needed",incoming.user);
+                        }
+                    }
+                    connection.Write(send);
+                    return;
+                case "r.adminhelp":
+                    send.PrivMsg("r.adminhelp, r.cf to crowfacts, r.us to unsubscribe, r.whitelist to make user bot admin, r.blacklist to block user, r.greylist to pull user off *list, r.say [channel] [message], r.join a channel, r.part a channel, r.quit to quit",incoming.user);
+                    connection.Write(send);
+                    return;
+                    // Commenting because I believe this to be unneeded
+                    // TODO Reevaluate
+                    /* case "r.ident":
+                       theRaven.IdentifySelfToServer();
+                       return;*/
+                case "r.mailerreset":
+                    theRaven.MailerCount = new Dictionary<String,int>();
+                    send.PrivMsg("Mailer counts have been reset",incoming.user);
+                    connection.Write(send);
+                    return;
+            }
+
+            return;		
+        }
+
+        /// <summary>
+        /// This function returns a search string for the user to browse.
+        /// </summary>
+        /// <param name=searchBase> this is the base of the search URL</param>
+        /// <param name=request> This is the string requested to be recombined.</param>
+        /// <param name=junction>This is the character to use to combine the search arguments</param>
+        public static String FormatSearch(String searchBase,String request,String junction) {
+            StringBuilder formattedString = new StringBuilder(searchBase);
+            String[] elements =  request.Split(' ');
+            if (elements.Length < 2) return helpString; 
+            formattedString.Append(elements[1]); //First element is the command
+            for (int i = 2; i < elements.Length; i++) {
+                formattedString.Append(junction);
+                formattedString.Append(elements[i]);
+            }
+            return formattedString.ToString();
+        }
+    }
+}

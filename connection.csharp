@@ -1,0 +1,177 @@
+using System;
+using System.Net;
+using System.Net.Sockets;
+using System.IO;
+using System.Text;
+using System.Threading;
+
+namespace AniNIX.TheRaven {
+
+    public class Connection : IDisposable {
+
+        private const int _ircReadTimeout = 200000; // We set this to the IRC mimimum of two minutes in microseconds
+
+        //These privates will be the socket we use.
+        private NetworkStream _networkStream = null; // This is the stream to use.
+        private TcpClient _tcpClient = null; // This is the TCP socket for the stream.
+        private StreamWriter _streamWriter = null; // This is the stream to write to
+        private StreamReader _streamReader = null; // This is the stream to read from 
+        private String _host = null; // This is DNS name or IP of the host to talk to
+        private int _port = 0; // this is the port number to connect to
+
+        /// <summary>
+        /// Connect to the host, populating the socket from the configuration options
+        /// </summary>
+        public Connection(String host, int port) { 
+            ReportMessage.Log(Verbosity.Verbose,String.Format("Connecting to host {0}...",host));
+            this._host = host;
+            this._port = port; 
+            this._tcpClient = new TcpClient(this._host,this._port);
+            this._tcpClient.ReceiveTimeout = Connection._ircReadTimeout;
+            this._networkStream = this._tcpClient.GetStream();
+            this._streamWriter = new StreamWriter(this._networkStream);
+            this._streamReader = new StreamReader(this._networkStream);
+            ReportMessage.Log(Verbosity.VeryVerbose,"... Connected.");
+        }
+
+        /// <summary>
+        /// Reads a line from the socket
+        /// </summary>
+        /// <returns> A string read from the socket </returns>
+        public IRCServerMessage Read() {
+            String response = null;
+            while (response == null) {
+                try {
+                    response = this._streamReader.ReadLine();
+                } catch (IOException e) { // If the socket times out, make sure the host is still alive.
+                    try {
+                        IRCPongMessage pingHost = new IRCPongMessage(String.Format("PING :{0}",this._host));
+                        Write(pingHost);
+                        response = this._streamReader.ReadLine();
+                    } catch (IOException f) { // If we get this, then the socket is dead and we need to signal
+                        throw new RavenTimedOutException(String.Format("{0}\n{1}\n",e.Message,f.Message));
+                    }
+                } 
+                if (response != null && response.Length > 3 && response.Substring(0,4).Equals("PING")) { // if the response is a PING message, PONG and read again.
+                    IRCPongMessage pong = new IRCPongMessage(response);
+                    Write(pong);
+                    response = null;
+                }
+            }
+            IRCServerMessage readMessage = new IRCServerMessage(response);
+            ReportMessage.Log(Verbosity.VeryVerbose,readMessage.ToString());
+            return readMessage;
+
+        }
+
+        /// <summary>
+        /// Writes a line to the socket
+        /// </summary>
+        /// <param name="toWrite">
+        /// The string to write
+        /// </param>
+        public void Write(IRCMessage toWrite) {
+            ReportMessage.Log(Verbosity.VeryVerbose,toWrite.ToString());
+            this._streamWriter.WriteLine(String.Format("{0}\r\n",toWrite.GetOutgoingIRCString()));
+            this._streamWriter.Flush();
+        } 
+
+        /// <summary> 
+        /// Is the user logged in?
+        /// </summary>
+        /// <param name="userName">
+        /// The username to check
+        /// </param>
+        /// <returns>
+        /// A boolean value representing whether the user is logged in or not
+        /// </returns>
+        public bool IsLoggedIn(String userName) {
+            ReportMessage.Log(Verbosity.VeryVerbose,String.Format("Asking for user {0} login status.",userName));
+            String outgoing = String.Format("WHOIS {0}\r\n",userName);
+            ReportMessage.Log(Verbosity.VeryVerbose,String.Format("<<< {0}",outgoing.Trim()));
+            this._streamWriter.WriteLine(outgoing);
+            this._streamWriter.Flush();
+            String[] bySpace;
+            do { 
+                String response = this._streamReader.ReadLine();
+                ReportMessage.Log(Verbosity.VeryVerbose,String.Format(">>> {0}",response));
+                bySpace = response.Split(' ');
+                if (bySpace.Length > 1 && bySpace[1].Equals("330")) {
+                    ReportMessage.Log(Verbosity.VeryVerbose,String.Format("User {0} is authenticated.",userName));
+                    return true;
+                }
+            } while (bySpace.Length < 2 || !bySpace[1].Equals("318"));
+            ReportMessage.Log(Verbosity.VeryVerbose,String.Format("User {0} is not authenticated.",userName));
+            return false;
+        }
+
+        /// <summary> 
+        /// Get the modes for a user
+        /// </summary>
+        /// <param name="userName">
+        /// the username to check
+        /// </param>
+        /// <returns>
+        /// A string with the modes.
+        /// </returns>
+        public String GetModes(String userName) {
+            ReportMessage.Log(Verbosity.VeryVerbose,String.Format("Asking for user {0} mode.",userName));
+            String outgoing = String.Format("MODE {0}\r\n",userName);
+            ReportMessage.Log(Verbosity.VeryVerbose,String.Format("<<< {0}",outgoing.Trim()));
+            this._streamWriter.WriteLine(outgoing);
+            this._streamWriter.Flush();
+            String[] bySpace;
+            do { 
+                String response = this._streamReader.ReadLine();
+                ReportMessage.Log(Verbosity.VeryVerbose,String.Format(">>> {0}",response));
+                bySpace = response.Split(' ');
+                if (bySpace.Length > 9 && bySpace[1].Equals("330")) {
+                    ReportMessage.Log(Verbosity.VeryVerbose,String.Format("User {0} has modes {1}.",userName,bySpace[4]));
+                    return bySpace[4];
+                }
+            } while (bySpace.Length < 2 || !bySpace[1].Equals("502"));
+            ReportMessage.Log(Verbosity.VeryVerbose,String.Format("Cannot get user modes -- not a netadmin.",userName));
+            return "";
+        }
+
+
+
+        /* CONNECTION NEEDS TO BE DISPOSABLE BECAUSE IT HOLDS A SOCKET */
+
+        /// <summary>
+        /// Clean up this Connection, implementing IDisposable
+        /// </summary>
+        public void Dispose() {
+            Dispose(true); // Dispose of this instance
+            GC.SuppressFinalize(this); //The Garbage Collector doesn't need to finalize it.
+        }
+
+        /// <summary>
+        /// Force the GarbageCollector to Dispose if programmer does not
+        /// </summary>
+        ~Connection() {
+            Dispose(false);
+            ReportMessage.Log(Verbosity.Error,"Programmer forgot to dispose of Connection. Marking for Garbage Collector");
+        }
+
+        // This bool indicates whether we are disposed of yet or not
+        bool _isDisposed = false;
+
+        /// <summary>
+        /// Dispose of this Connection's resources responsibly.
+        /// </summary> 
+        protected virtual void Dispose(bool disposing) {
+            if (!this._isDisposed) { //if we haven't already disposed of this, we should.
+                if (disposing) {
+                    //No managed resources for this class.
+                }
+                // Cleaning unmanaged resources
+                this._streamReader.Dispose();
+                this._streamWriter.Dispose();
+                this._tcpClient.Close();
+                this._networkStream.Dispose();
+            }
+            this._isDisposed = true;
+        }
+    }
+}

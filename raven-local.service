@@ -1,0 +1,15 @@
+[Unit]
+Description=AniNIX::Raven IRC Bot for Local
+After=network.target
+
+[Service]
+type=simple
+ExecStart=/usr/bin/mono /opt/raven.mono -c /usr/local/etc/TheRaven-Local
+ExecReload=/bin/kill -HUP $MAINPID
+KillMode=process
+Restart=always
+User=ircd
+Group=ircd
+
+[Install]
+WantedBy=multi-user.target

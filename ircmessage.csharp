@@ -1,0 +1,28 @@
+using System;
+
+namespace AniNIX.TheRaven {
+
+	public abstract class IRCMessage {
+
+		protected string incomingIRCString;
+		protected string outgoingIRCString;
+
+		public string GetOutgoingIRCString() {
+			return outgoingIRCString;
+		}
+
+		public string GetIncomingIRCString() {
+			return incomingIRCString;
+		}
+
+		public override string ToString() {
+			if (outgoingIRCString == null || outgoingIRCString.Length < 1) {
+				return String.Format(">>> {0}",incomingIRCString);
+			} else if (incomingIRCString == null || incomingIRCString.Length < 1) {
+				return String.Format("<<< {0}",outgoingIRCString);
+			} else {
+				return string.Format(">>> {1}\n<<< {0}",outgoingIRCString,incomingIRCString);
+			}
+		}
+	}
+}

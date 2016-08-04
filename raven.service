@@ -1,0 +1,14 @@
+[Unit]
+Description=AniNIX::Raven IRC Bot for ACWiki
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/mono /opt/raven.mono -c /usr/local/etc/TheRaven
+ExecReload=/bin/kill -HUP $MAINPID
+KillMode=process
+Restart=always
+User=raven
+Group=raven
+
+[Install]
+WantedBy=multi-user.target

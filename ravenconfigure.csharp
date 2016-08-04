@@ -1,0 +1,65 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Text;
+
+namespace AniNIX.TheRaven {
+
+	public static class RavenConfigure {
+
+	/// <summary>
+	/// Create a new list from the line-delimited entries in a file
+	/// </summary>
+	/// <param name=filename> the file to read </param>
+	/// <returns> A List of Strings containing the lines.</returns>
+	public static List<String> ReadLineDelimitedFile(String filename) {
+		String line = null;
+		int count = 0;
+		//Read all the file to join.
+		ReportMessage.Log(Verbosity.Verbose,String.Format("Reading {0}",filename)); //Path.GetFileName(filename)));
+		List<String> newEntries = new List<String>();
+		StreamReader fileReader = new StreamReader(filename);
+		line = fileReader.ReadLine();
+		while (line != null) {
+		if (line.Length < 1) {
+			line = fileReader.ReadLine();
+			continue;
+		}
+		line = line.Trim();
+		if (line[0] == '#') {
+			line = fileReader.ReadLine();
+			continue;
+		} //Skip lines starting with a #
+		String[] byHash = line.Split('#'); //Ignore everything after a #
+		newEntries.Add(byHash[0]);
+		count++;
+		ReportMessage.Log(Verbosity.VeryVerbose,String.Format("Added entry {0} from {1}",line,Path.GetFileName(filename)));
+		line = fileReader.ReadLine();
+		} 
+		fileReader.Close();
+		ReportMessage.Log(Verbosity.VeryVerbose,String.Format("Found {0} newEntries.",newEntries.Count));
+		return newEntries;
+	}
+
+	/// <summary>
+	/// Get the String[] of lines in a file -- use this for random performance
+	/// </summary>
+	/// <param name=filename> the file to read </param>
+	/// <returns> A String[] </returns>
+	public static String[] ReadLineDelimitedFileToArr(String filename) {
+		return RavenConfigure.ReadLineDelimitedFile(filename).ToArray();
+	}
+
+	/// <summary>
+	/// Read the first line from a file -- this is useful for allowing configuration of single strings.
+	/// </summary>
+	/// <param name=filename> the file to read </param>
+	/// <returns>The first line as a String</returns>
+	public static String ReadFirstLineFromFile(String filename) {
+		StreamReader fileReader = new StreamReader(filename);
+		String readString = fileReader.ReadLine();
+		fileReader.Close();
+		return readString;
+	}
+	}
+}

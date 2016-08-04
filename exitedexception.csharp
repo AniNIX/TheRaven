@@ -1,0 +1,17 @@
+using System;
+
+namespace AniNIX.TheRaven { 
+	public class RavenExitedException : System.Exception {
+
+	/// <summary>
+	/// Create a new RavenTimedOutException to identify this event
+	/// </summary>
+	public RavenExitedException(String message) : base(message) { }
+	
+	/// <summary>
+	/// Create a new RavenTimedOutException to identify this event
+	/// </summary>
+	public RavenExitedException() : base(null) { }
+
+	}
+}

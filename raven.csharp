@@ -1,0 +1,387 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Text;
+
+namespace AniNIX.TheRaven {
+
+    public sealed class Raven : IDisposable {
+
+        /* These are the private globals for this instance
+         * They should never be accessible outside this Raven
+         */
+        //These are the basic configuration information to be overwritten
+        public String Host { get; private set; } //This is the Host we are connecting to. 
+        public int Port { get; private set; } // This is Port to connect on
+        private string _nick; // This is the _nickname for this Raven to use.
+        private string _nickServPass; // This is the password we will send to NickServ to identify
+        private string _autoSend; // This is the command we will automatically send to the Host
+        private string configDir; // This is the configuration directory. 
+        private Connection _connection; //This is the socket to the Host
+
+        public List<String> channels = new List<String>(); //This is the list of channels to join
+        public List<String> whitelist = new List<String>(); //This is the list of admin users.
+        public List<String> blacklist = new List<String>(); // This is the list of blocked people.
+        public String helpText = null; // This is the text to send when people ask for help -- this is configurable to allow for skinning	
+        public List<String> searches = new List<String>(); //These are the searches
+        public String[] magic8 = null; //These are the strings to return like a Magic 8-ball to questions. 
+        public String[] crowFacts = null; //These are the possible CrowFacts
+        public List<String> crowFactsSubscribers = new List<String>(); //These are the subscribers to CrowFacts
+        public Dictionary<String,String> notifications = new Dictionary<String,String>(); // This is the notifications list for TheRaven.
+
+        public Random randomSeed = new Random(); //This is our random seed
+
+        public Dictionary<String,int> MailerCount = new Dictionary<String,int>(); // Messages may only be sent up to a maximum to the admins.
+
+        public static Verbosity verbosity { get; private set; } // This is the level to which this and all Raven instances will log.
+
+        /// <summary>
+        /// Show the settings used by this Raven.
+        /// </summary>
+        /// <returns>A string representing this Raven</returns>
+        public override string ToString() {
+            StringBuilder sb = new StringBuilder();
+            sb.Append("### AniNIX::TheRaven -- Running Values ###\n");
+            sb.Append(String.Format("Host: {0}\n",Host));
+            sb.Append(String.Format("Port: {0}\n",Port));
+            sb.Append(String.Format("Nick: {0}\n",_nick));
+            sb.Append("NickServPass: ****\n");
+            sb.Append(String.Format("Auto: {0}\n",_autoSend));
+            sb.Append(String.Format("Conf: {0}\n",configDir));
+            sb.Append(String.Format("Verbosity: {0}\n",Raven.verbosity));
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// Read from the files in the directory to configure this Raven
+        /// </summary>
+        // TODO: This and ParseArgs may get punted into their own static class to improve readability.
+        private void ConfigureSelfFromFiles(String configDir) {
+
+            if (configDir==null || configDir == "" || !Directory.Exists(configDir)) {
+                ReportMessage.Log(Verbosity.Error,"Configuration directory does not exist!");
+                return;
+            }
+
+
+            ReportMessage.Log(Verbosity.Always,String.Format("Reading from files in {0}...",configDir)); 
+
+            //These are locals that will be used throughout
+            ReportMessage.Log(Verbosity.Verbose,"Reading login defaults");
+            String[] loginDefaults = RavenConfigure.ReadLineDelimitedFile(Path.Combine(configDir,"loginDefaults.txt")).ToArray();
+            //We have to populate these properties fom the list explicitly
+            if (loginDefaults.Length < 4) {
+                ReportMessage.Log(Verbosity.Error,"Login defaults are incomplete. No changes made.");
+            } else {
+                Host = (Host==null) ? loginDefaults[0] : Host;
+                try {
+                    Port = (Port == 0)  ? Int32.Parse(loginDefaults[1]) : Port;
+                } catch (Exception e) {
+                    ReportMessage.Log(Verbosity.Verbose,"Cannot parse Port.");
+                    e.ToString();
+                    Port = 6667;
+                }
+                _nick = (_nick == null) ? loginDefaults[2] : _nick;
+                _nickServPass = (_nickServPass == null) ? loginDefaults[3] : _nickServPass;
+            }
+
+            //Read all the channels to join.
+            List<String> tempChannels = RavenConfigure.ReadLineDelimitedFile(Path.Combine(configDir,"rooms.txt"));
+            // Because the convention is to use # for comments, channels in the rooms.txt file do not start with a #
+            foreach (String channel in tempChannels) {
+                channels.Add(String.Format("#{0}",channel));
+            }
+
+            //Read the whitelist of folks allowed to execute administrative commands
+            whitelist = RavenConfigure.ReadLineDelimitedFile(Path.Combine(configDir,"whitelist.txt"));
+
+            //Read the blacklist of folks not allowed to do anything.
+            blacklist = RavenConfigure.ReadLineDelimitedFile(Path.Combine(configDir,"blacklist.txt"));
+
+            //Read the helptext
+            helpText = RavenConfigure.ReadFirstLineFromFile(Path.Combine(configDir,"helptext.txt"));
+
+            //Read the searches to use
+            searches = RavenConfigure.ReadLineDelimitedFile(Path.Combine(configDir,"searches.txt"));
+
+            //Read the Magic8 options
+            magic8 = RavenConfigure.ReadLineDelimitedFileToArr(Path.Combine(configDir,"magic8.txt"));
+
+            //Read the CrowFacts
+            crowFacts = RavenConfigure.ReadLineDelimitedFileToArr(Path.Combine(configDir,"crowfacts.txt"));
+
+            //Read the notifications
+            foreach (String combo in RavenConfigure.ReadLineDelimitedFileToArr(Path.Combine(configDir,"notifications.txt"))) {
+                String[] byPipe = combo.Split('|');
+                notifications.Add(String.Format("#{0}",byPipe[0]),byPipe[1]);
+            }
+        }
+
+        /// <summary>
+        /// Parse arguments from the command line.
+        /// </summary>
+        //TODO: Move this to RavenConfigure and add struct for these configurations
+        public void ParseArguments(String[] args) {
+            if (args != null) {
+                for (int i = 0; i < args.Length; i++) {
+                    ReportMessage.Log(Verbosity.Verbose,String.Format("Handling Argument {0}: {1}",i,args[i]));
+                    switch (args[i]) {
+                        case "-n":
+                            if (i < args.Length-1) _nick = args[++i];
+                            break;
+                        case "-h":
+                            if (i < args.Length-1) Host = args[++i];
+                            break;
+                        case "-p":
+                            if (i < args.Length-1) try {
+                                Port = Int32.Parse(args[++i]);
+                            } catch (Exception e) {
+                                e.ToString();
+                                Port = 6667;
+                            }
+                            break;
+                        case "-v":
+                            Raven.verbosity = Verbosity.VeryVerbose;	
+                            break;
+                        case "-q":
+                            Raven.verbosity = Verbosity.Quiet;
+                            break;
+                        case "-P":
+                            if (i < args.Length-1) _nickServPass = args[++i];
+                            break;
+                            //TODO: Add daemonizing?
+                        case "-a":
+                            if (i < args.Length-1) _autoSend = args[++i];
+                            break;
+                        case "--help":
+                            //TODO Add helptext
+                            break;
+                        case "-c":
+                            if (i < args.Length-1) configDir = args[++i];
+                            break;
+                    }
+                }
+            }
+        }		
+
+        /// <summary>
+        /// Create a new Raven instance
+        /// </summary>
+        /// <param name="args">
+        /// The arguments for creating the bot
+        /// </param>
+        public Raven(string[] args) {
+
+            ReportMessage.Log(Verbosity.Always,"Reading arguments...");
+
+            // If we have arguments
+            this.ParseArguments(args);
+
+            this.ConfigureSelfFromFiles(configDir);
+
+            ReportMessage.Log(Verbosity.VeryVerbose,"Started with these values:");
+            ReportMessage.Log(Verbosity.VeryVerbose,this.ToString());
+        }
+
+        /// <summary>
+        /// Create a raven with default settings.
+        /// </summary>
+        public Raven(String host = "localhost", int port = 6667, String nick = "TheRaven-Guest", String nickServPass = "null", String autoSend = null, String configDir = "/usr/local/etc/TheRaven-Local", Verbosity verbosity = Verbosity.Verbose) {
+            this.Host = host;
+            Port = port;
+            _nick = nick;
+            _nickServPass = nickServPass;
+            _autoSend = autoSend;
+            this.configDir = configDir;
+            Raven.verbosity = verbosity;
+        }
+
+        /// <summary>
+        /// Identify to the server and join the initial channels
+        /// </summary> 
+        public void IdentifySelfToServer() {
+            ReportMessage.Log(Verbosity.Always,"Identifying to the server");
+            //Read for the initial two NOTICE messages about Hostnames
+            IRCServerMessage response = null;
+            int countNotice = 0;
+            while (countNotice < 2) {
+                response = _connection.Read();
+                if (response.msgCode.Equals("NOTICE")) countNotice += 1;
+            }
+            ReportMessage.Log(Verbosity.VeryVerbose,"Past the notices.");
+
+            //Send USER and NICK lines to identify. 
+            IRCClientMessage send = new IRCClientMessage();
+            send.CreateCustomMessage(String.Format("NICK {0}\nUSER {0} * * :{0}",_nick));
+            _connection.Write(send);
+            ReportMessage.Log(Verbosity.VeryVerbose,"USER and NICK sent");
+            //thanks to cfrayne for the refactor
+
+            do {
+                response = _connection.Read();
+                if (response.msgCode != null && response.msgCode.Equals("433")) throw new AlreadyIdentifiedException();
+            } while (response.msgCode == null || !response.msgCode.Equals("266"));
+
+            //Identify to NickServ
+            send.NickServIdent(_nickServPass);
+            _connection.Write(send);
+            ReportMessage.Log(Verbosity.VeryVerbose,"Identified to NickServ");
+
+            //Send the autosend
+            send.CreateCustomMessage(_autoSend);
+            _connection.Write(send);
+            ReportMessage.Log(Verbosity.VeryVerbose,"Sent autosend");		
+
+            //Join the default channels
+            foreach (String channel in channels) {
+                if (channel != null && channel.Length > 2 && channel[0] == '#') {
+                    send.CreateJoinMessage(channel);
+                    _connection.Write(send);
+                }
+            }
+        }
+
+        /// <summary> 
+        /// Read from the connection, and for each message act appropriately.
+        /// </summary>
+        public void LoopOnTraffic() {
+            ReportMessage.Log(Verbosity.Verbose,"Looping on trafffic now! We're useful!");
+            while (true) {
+                IRCServerMessage response = _connection.Read();
+                if (response != null && response.message != null && response.message.Length > 3 && response.message.Substring(0,2).Equals("r.")) {
+                    RavenCommand.Respond(_connection,response,this);
+                } else if (response != null) {
+                    //Try to notify the admins when a given string is found in a given channel
+                    String result;
+                    if (notifications.TryGetValue(response.target,out result)) {
+                        if (response.message.Contains(result)) {
+                            try {
+                                RavenExecute.Command(String.Format("djinni admin \"Found {1} in {0}\"",response.target,result));
+                            } catch (Exception e) {
+                                ReportMessage.Log(Verbosity.Error,e.ToString());
+                            }
+
+                        }
+                    }
+
+                    //TODO Implement the dialog options and link reponse
+
+                /* CROWFACTS the deserving */
+
+                if (crowFactsSubscribers.Contains(response.user) && randomSeed.Next(10) < 8) {
+                    IRCClientMessage send = new IRCClientMessage();
+                    int location = randomSeed.Next(crowFacts.Length);
+                    send.PrivMsg(crowFacts[location],response.user);
+                    _connection.Write(send);
+                }
+                }
+
+            }
+        }
+
+        /// <summary>
+        /// Close the _connection
+        /// </summary>
+        private void CloseConnection() {
+            this._connection.Dispose();
+        }
+
+        /// <summary>
+        /// Execute the work of connecting the IRCbot to the network and handle the traffic.
+        /// </summaray>
+        /// <returns> The proper OS-level exit status -- if there are problems, return 1; else return 0 </returns>
+        public int Run() {
+            ReportMessage.Log(Verbosity.Verbose,"Beginning...");
+
+            //create a new _connection to the Host.
+            try { 
+                _connection = new Connection(this.Host,this.Port);
+                IdentifySelfToServer();
+                LoopOnTraffic();
+                // Allow the program to exit cleanly
+
+            } catch (RavenExitedException e) {
+                this.CloseConnection();
+                this.Dispose();
+                ReportMessage.Log(Verbosity.Always,String.Format("Exited cleanly.\n{0}",e.Message));
+                return 0;
+            } 
+            //Cleanly exit
+            return 0;
+        }
+
+        /* Make a Raven disposable */
+
+        /// <summary>
+        /// Clean up this Connection, implementing IDisposable
+        /// </summary>
+        public void Dispose() {
+            this.Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+        /// <summary>
+        /// Force the GarbageCollector to Dispose if programmer does not
+        /// </summary>
+        ~Raven() {
+            Dispose(false);
+            ReportMessage.Log(Verbosity.Error,"Programmer forgot to dispose of Raven. Marking for Garbage Collector");
+        }
+
+        // This bool indicates whether we have disposed of this Raven
+        public bool _isDisposed = false;
+
+        /// <summary>
+        /// Dispose of this Raven's's resources responsibly.
+        /// </summary>
+        private void Dispose(bool disposing) {
+            if (!_isDisposed) {
+                if (disposing) {
+                    Host = null;
+                    Port = 0;
+                    _nickServPass = null;
+                    _autoSend = null;
+                    configDir = null;
+                    whitelist = null;
+                    blacklist = null;
+                    magic8 = null;
+                    crowFacts = null;
+                    crowFactsSubscribers = null;
+                    channels = null;
+                    searches = null;
+
+                }
+                _connection.Dispose();
+            }
+            this._isDisposed = true;		
+        }
+
+        /// <summary>
+        /// The default function
+        /// </summary>
+        static int Main(string[] args) {
+            Raven theRaven = new Raven(args);
+            ReportMessage.Log(Verbosity.Verbose,"### AniNIX::TheRaven ###");
+            //Continue until we cleanly exit. 
+            while (true) {
+                try {
+                    return theRaven.Run();
+                    //If we are already identified, we're done. 
+                } catch (AlreadyIdentifiedException e) {
+                    ReportMessage.Log(Verbosity.Error,"There is already a Raven on this Host.");
+                    ReportMessage.Log(Verbosity.Error,e.Message);
+                    return 0;
+                    // Timeouts should result in a respawn
+                } catch (RavenTimedOutException e) {
+                    ReportMessage.Log(Verbosity.Always,"Connection timed out. Respawning");
+                    ReportMessage.Log(Verbosity.Verbose,e.Message);
+                    continue;
+                    //If an exception gets here, something went wrong
+                } catch (Exception e) {
+                    ReportMessage.Log(Verbosity.Error,"Unexpected exception caught!");
+                    ReportMessage.Log(Verbosity.Error,e.ToString());
+                    return 1;
+                }
+            }
+        }
+    }
+}

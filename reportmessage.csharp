@@ -1,0 +1,45 @@
+using System;
+
+namespace AniNIX.TheRaven { 
+
+	public enum Verbosity {
+		Always = -2,
+		Error,
+		Quiet = 0,
+		Verbose,
+		VeryVerbose,
+		Explicit,
+	}
+
+	public static class ReportMessage {
+
+
+		/// <summary>
+		/// Log a new message for the user.
+		/// </summary>
+		public static void Log(Verbosity level,String message) {
+
+			if (level == Verbosity.Error) {
+				Console.Error.WriteLine(message);
+				return;
+			}
+
+			if (Raven.verbosity == Verbosity.Quiet) { 
+				return;
+			}
+
+			if (level == Verbosity.Always
+					|| (Raven.verbosity == Verbosity.Verbose && level == Verbosity.Verbose)
+					|| (Raven.verbosity == Verbosity.VeryVerbose && (level == Verbosity.Verbose || level == Verbosity.VeryVerbose))
+					|| (Raven.verbosity == Verbosity.Explicit && (level == Verbosity.Verbose || level == Verbosity.VeryVerbose || level == Verbosity.Explicit))
+			   ) {
+				Console.WriteLine(message);
+			}
+
+		}
+
+		public static void Log(String message) {
+			Log(Verbosity.VeryVerbose,message);
+		}
+	}
+}

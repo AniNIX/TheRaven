@@ -1,0 +1,59 @@
+using System;
+using System.Collections.Generic;
+
+namespace AniNIX.TheRaven {
+
+	//IRC messages are a primitive data type for us to use.
+	public class IRCServerMessage : IRCMessage {
+
+		public string user { get; protected set; }
+		public string server { get; protected set; }
+		public string msgCode { get; protected set; }
+		public string target { get; protected set; }
+		public string message { get; protected set; }
+
+		public IRCServerMessage(String serverString) {
+			incomingIRCString = serverString.Trim();
+			try {
+				String[] byColon = incomingIRCString.Split(':');
+				user = byColon[0];
+				String[] bySpace = byColon[1].Split(' ');
+                List<String> messageL = new List<String>(byColon);
+                messageL.RemoveAt(0);
+                messageL.RemoveAt(0);
+                message = String.Join(":",messageL.ToArray());
+				if (bySpace[0].Contains("!")) {
+					String[] byExclamation = bySpace[0].Split('!');
+					user = byExclamation[0];
+					server = byExclamation[1];
+				} else {
+					user = null;
+					server = bySpace[0];
+				}
+
+				msgCode = bySpace[1];
+				target = bySpace[2];
+			} catch (IndexOutOfRangeException e) {
+				ReportMessage.Log(Verbosity.Error,String.Format("!!! Can't translate string:\n{0}",serverString,e.ToString()));
+				user = null;
+				server = null;
+				msgCode = null;
+				target = null;
+				message = null;
+			}
+		}
+
+		// There is no outgoing string.
+		public new string GetOutgoingIRCString() {
+			return null;
+		}
+
+		public override string ToString() {
+			if (Raven.verbosity == Verbosity.Explicit) { 
+				return String.Format(">>> {0}\nUser: {1}\nServer: {2}\nmsgCode: {3}\nTarget: {4}\nMessage: {5}\n",incomingIRCString,user,server,msgCode,target,message);
+			} else {
+				return String.Format(">>> {0}",incomingIRCString);
+			}
+		}
+	}
+}

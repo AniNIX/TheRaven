@@ -50,6 +50,19 @@ namespace AniNIX.TheRaven {
                     }
                     connection.Write(send);
                     return;
+                case "r.d":
+                    if (bySpace.Length < 2) {
+                        send.PrivMsg(theRaven.helpText,incoming.user);
+                    } else {
+                        try {
+                            int result = theRaven.randomSeed.Next(Int32.Parse(bySpace[1]));
+                            send.PrivMsg(String.Format("{0}",result+1),incoming.target);
+                        } catch (Exception e) {
+                            send.PrivMsg("Bad formatting.",incoming.target);
+                        }
+                    }
+                    connection.Write(send);
+                    return;
                 case "r.tinyurl":
                     if (bySpace.Length < 2) {
                         send.PrivMsg(theRaven.helpText,incoming.user);

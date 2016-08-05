@@ -1,7 +1,7 @@
 raven.mono: /usr/bin/mcs /usr/bin/mono clean ./raven.csharp ./connection.csharp ./ravencommand.csharp /bin/bash /usr/bin/mail /usr/bin/wget
 	mkdir -p /usr/local/etc/TheRaven
 	mcs -out:raven.mono reportmessage.csharp *exception.csharp irc*message.csharp connection.csharp raven*.csharp
-	id raven || useradd -M -G bzr,ircd,api raven
+	id raven || useradd -M -G git,ircd,api raven
 	id raven || usermod -d /usr/local/etc/TheRaven raven
 	chown raven:raven /usr/local/etc/TheRaven
 
@@ -15,7 +15,7 @@ edit:
 	emacs -nw raven.csharp
 
 test: raven.mono
-	su raven -c 'script -c "mono ./raven.mono -c /usr/local/etc/TheRaven-Test -v" /tmp/raven-test.log'
+	script -c "mono ./raven.mono -c /usr/local/etc/TheRaven-Test -v" /tmp/raven-test.log
 
 check-for-verbosity:
 	grep Console.WriteLine *.csharp | egrep -v 'verbosity|raven.csharp'; echo
@@ -30,7 +30,3 @@ install: raven.mono
 	/usr/bin/bash make-conf-dir.bash /usr/local/etc/TheRaven
 	systemctl daemon-reload
 	systemctl enable raven
-
-commit: /usr/bin/bzr
-	bzr commit
-	chown -R raven:bzr .bzr

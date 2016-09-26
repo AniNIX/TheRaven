@@ -27,6 +27,7 @@ namespace AniNIX.TheRaven {
             proc.StartInfo.FileName = "/bin/bash";
             proc.StartInfo.Arguments = String.Format("-c \'{0}\'",command);
             proc.StartInfo.UseShellExecute=false;
+            ReportMessage.Log(Verbosity.Verbose,String.Format("{0} {1}",proc.StartInfo.FileName,proc.StartInfo.Arguments));
             
             //Redirect input
             proc.StartInfo.RedirectStandardOutput=true;

@@ -1,9 +1,5 @@
-raven.mono: /usr/bin/mcs /usr/bin/mono clean ./raven.csharp ./connection.csharp ./ravencommand.csharp /bin/bash /usr/bin/mail /usr/bin/wget
-	mkdir -p /usr/local/etc/TheRaven
+raven.mono: /usr/bin/mcs /usr/bin/mono clean ./raven.csharp ./connection.csharp ./ravencommand.csharp /bin/bash /usr/bin/mail /usr/bin/wget /usr/local/bin/djinni ./chatbot-support.bash
 	mcs -out:raven.mono reportmessage.csharp *exception.csharp irc*message.csharp connection.csharp raven*.csharp
-	id raven || useradd -M -G git,ircd,api raven
-	id raven || usermod -d /usr/local/etc/TheRaven raven
-	chown raven:raven /usr/local/etc/TheRaven
 
 clean:
 	if [ "$$(ls ./*~ 2>/dev/null | wc -l)" -gt 0 ]; then rm -Rf *~; fi
@@ -21,6 +17,10 @@ check-for-verbosity:
 	grep Console.WriteLine *.csharp | egrep -v 'verbosity|raven.csharp'; echo
 
 install: raven.mono
+	id raven || useradd -M -G git,ircd,api raven
+	id raven || usermod -d /usr/local/etc/TheRaven raven
+	chown raven:raven /usr/local/etc/TheRaven
+	mkdir -p /usr/local/etc/TheRaven
 	cp raven.mono /opt/raven.mono
 	[ ! -d /usr/local/etc/TheRaven ] || mkdir -p /usr/local/etc/TheRaven
 	chown -R raven:raven /opt/raven.mono /usr/local/etc/TheRaven*

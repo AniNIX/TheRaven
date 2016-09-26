@@ -13,7 +13,7 @@ namespace AniNIX.TheRaven {
         //These are the basic configuration information to be overwritten
         public String Host { get; private set; } //This is the Host we are connecting to. 
         public int Port { get; private set; } // This is Port to connect on
-        private string _nick; // This is the _nickname for this Raven to use.
+        public string Nick { get; private set; } // This is the Nickname for this Raven to use.
         private string _nickServPass; // This is the password we will send to NickServ to identify
         private string _autoSend; // This is the command we will automatically send to the Host
         private string configDir; // This is the configuration directory. 
@@ -44,7 +44,7 @@ namespace AniNIX.TheRaven {
             sb.Append("### AniNIX::TheRaven -- Running Values ###\n");
             sb.Append(String.Format("Host: {0}\n",Host));
             sb.Append(String.Format("Port: {0}\n",Port));
-            sb.Append(String.Format("Nick: {0}\n",_nick));
+            sb.Append(String.Format("Nick: {0}\n",Nick));
             sb.Append("NickServPass: ****\n");
             sb.Append(String.Format("Auto: {0}\n",_autoSend));
             sb.Append(String.Format("Conf: {0}\n",configDir));
@@ -81,7 +81,7 @@ namespace AniNIX.TheRaven {
                     e.ToString();
                     Port = 6667;
                 }
-                _nick = (_nick == null) ? loginDefaults[2] : _nick;
+                Nick = (Nick == null) ? loginDefaults[2] : Nick;
                 _nickServPass = (_nickServPass == null) ? loginDefaults[3] : _nickServPass;
             }
 
@@ -127,7 +127,7 @@ namespace AniNIX.TheRaven {
                     ReportMessage.Log(Verbosity.Verbose,String.Format("Handling Argument {0}: {1}",i,args[i]));
                     switch (args[i]) {
                         case "-n":
-                            if (i < args.Length-1) _nick = args[++i];
+                            if (i < args.Length-1) Nick = args[++i];
                             break;
                         case "-h":
                             if (i < args.Length-1) Host = args[++i];
@@ -184,12 +184,17 @@ namespace AniNIX.TheRaven {
         }
 
         /// <summary>
+        /// Populate the name recognition
+        /// </summary>
+        
+
+        /// <summary>
         /// Create a raven with default settings.
         /// </summary>
         public Raven(String host = "localhost", int port = 6667, String nick = "TheRaven-Guest", String nickServPass = "null", String autoSend = null, String configDir = "/usr/local/etc/TheRaven-Local", Verbosity verbosity = Verbosity.Verbose) {
             this.Host = host;
             Port = port;
-            _nick = nick;
+            Nick = nick;
             _nickServPass = nickServPass;
             _autoSend = autoSend;
             this.configDir = configDir;
@@ -212,7 +217,7 @@ namespace AniNIX.TheRaven {
 
             //Send USER and NICK lines to identify. 
             IRCClientMessage send = new IRCClientMessage();
-            send.CreateCustomMessage(String.Format("NICK {0}\nUSER {0} * * :{0}",_nick));
+            send.CreateCustomMessage(String.Format("NICK {0}\nUSER {0} * * :{0}",Nick));
             _connection.Write(send);
             ReportMessage.Log(Verbosity.VeryVerbose,"USER and NICK sent");
             //thanks to cfrayne for the refactor
@@ -256,7 +261,7 @@ namespace AniNIX.TheRaven {
                     if (notifications.TryGetValue(response.target,out result)) {
                         if (response.message.Contains(result)) {
                             try {
-                                RavenExecute.Command(String.Format("djinni admin \"Found {1} in {0}\"",response.target,result));
+                                RavenExecute.Command(String.Format("/usr/local/bin/djinni admin \"Found {1} in {0}\"",response.target,result));
                             } catch (Exception e) {
                                 ReportMessage.Log(Verbosity.Error,e.ToString());
                             }
@@ -264,18 +269,22 @@ namespace AniNIX.TheRaven {
                         }
                     }
 
-                    //TODO Implement the dialog options and link reponse
+                    // Integrate with the ALICE chatbot project.
+                    // TODO Create a local instance instead
+                    if (response.msgCode.Equals("PRIVMSG") && !String.IsNullOrWhiteSpace(response.message) && (response.target.Equals(Nick) || response.message.StartsWith(String.Format("{0}:",Nick)) || response.message.EndsWith(String.Format("{0}!",Nick)) || response.message.EndsWith(String.Format("{0}?",Nick)) || response.message.EndsWith(String.Format("{0}.",Nick)) || response.message.EndsWith(String.Format("{0}",Nick)))) {
+                        IRCClientMessage send = new IRCClientMessage();
+                        send.PrivMsg(RavenExecute.Command(String.Format("bash /usr/local/src/TheRaven/chatbot-support.bash {0} {1}",response.message.Replace("'","").Replace("\"","").Split('\n')[0].Trim(),Nick)).Trim(),(response.target.Equals(Nick))?response.user:response.target);
+                        _connection.Write(send);
+                    }
 
-                /* CROWFACTS the deserving */
-
-                if (crowFactsSubscribers.Contains(response.user) && randomSeed.Next(10) < 8) {
-                    IRCClientMessage send = new IRCClientMessage();
-                    int location = randomSeed.Next(crowFacts.Length);
-                    send.PrivMsg(crowFacts[location],response.user);
-                    _connection.Write(send);
+                    /* CROWFACTS the deserving */
+                    if (crowFactsSubscribers.Contains(response.user) && randomSeed.Next(10) < 8) {
+                        IRCClientMessage send = new IRCClientMessage();
+                        int location = randomSeed.Next(crowFacts.Length);
+                        send.PrivMsg(crowFacts[location],response.user);
+                        _connection.Write(send);
+                    }
                 }
-                }
-
             }
         }
 

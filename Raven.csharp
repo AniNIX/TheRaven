@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using AniNIX.Shared;
 
 namespace AniNIX.TheRaven {
 
@@ -33,8 +34,6 @@ namespace AniNIX.TheRaven {
 
         public Dictionary<String,int> MailerCount = new Dictionary<String,int>(); // Messages may only be sent up to a maximum to the admins.
 
-        public static Verbosity verbosity { get; private set; } // This is the level to which this and all Raven instances will log.
-
         /// <summary>
         /// Show the settings used by this Raven.
         /// </summary>
@@ -48,7 +47,7 @@ namespace AniNIX.TheRaven {
             sb.Append("NickServPass: ****\n");
             sb.Append(String.Format("Auto: {0}\n",_autoSend));
             sb.Append(String.Format("Conf: {0}\n",configDir));
-            sb.Append(String.Format("Verbosity: {0}\n",Raven.verbosity));
+            sb.Append(String.Format("Verbosity: {0}\n",ReportMessage.verbosity));
             return sb.ToString();
         }
 
@@ -141,10 +140,10 @@ namespace AniNIX.TheRaven {
                             }
                             break;
                         case "-v":
-                            Raven.verbosity = Verbosity.VeryVerbose;	
+                            ReportMessage.verbosity = Verbosity.VeryVerbose;	
                             break;
                         case "-q":
-                            Raven.verbosity = Verbosity.Quiet;
+                            ReportMessage.verbosity = Verbosity.Quiet;
                             break;
                         case "-P":
                             if (i < args.Length-1) _nickServPass = args[++i];
@@ -186,7 +185,7 @@ namespace AniNIX.TheRaven {
         /// <summary>
         /// Populate the name recognition
         /// </summary>
-        
+
 
         /// <summary>
         /// Create a raven with default settings.
@@ -198,7 +197,7 @@ namespace AniNIX.TheRaven {
             _nickServPass = nickServPass;
             _autoSend = autoSend;
             this.configDir = configDir;
-            Raven.verbosity = verbosity;
+            ReportMessage.verbosity = verbosity;
         }
 
         /// <summary>
@@ -261,7 +260,7 @@ namespace AniNIX.TheRaven {
                     if (notifications.TryGetValue(response.target,out result)) {
                         if (response.message.Contains(result)) {
                             try {
-                                RavenExecute.Command(String.Format("/usr/local/bin/djinni admin \"Found {1} in {0}\"",response.target,result));
+                                ExecuteCommand.Run(String.Format("/usr/local/bin/djinni admin \"Found {1} in {0}\"",response.target,result));
                             } catch (Exception e) {
                                 ReportMessage.Log(Verbosity.Error,e.ToString());
                             }
@@ -273,16 +272,31 @@ namespace AniNIX.TheRaven {
                     // TODO Create a local instance instead
                     if (response.msgCode.Equals("PRIVMSG") && !String.IsNullOrWhiteSpace(response.message) && (response.target.Equals(Nick) || response.message.StartsWith(String.Format("{0}:",Nick)) || response.message.EndsWith(String.Format("{0}!",Nick)) || response.message.EndsWith(String.Format("{0}?",Nick)) || response.message.EndsWith(String.Format("{0}.",Nick)) || response.message.EndsWith(String.Format("{0}",Nick)))) {
                         IRCClientMessage send = new IRCClientMessage();
-                        send.PrivMsg(RavenExecute.Command(String.Format("bash /usr/local/src/TheRaven/chatbot-support.bash {0} {1}",response.message.Replace("'","").Replace("\"","").Split('\n')[0].Trim(),Nick)).Trim(),(response.target.Equals(Nick))?response.user:response.target);
+                        try {
+                            send.PrivMsg(ExecuteCommand.Run(String.Format("bash /usr/local/src/TheRaven/chatbot-support.bash \"{0}\" {1}",response.message.Replace("'","").Replace("\"","").Split('\n')[0].Trim(),Nick)).Trim(),(response.target.Equals(Nick))?response.user:response.target);
+                        } catch (Exception e) {
+                            e.ToString();
+                            send.PrivMsg("Cannot talk right now.",(response.target.Equals(Nick))?response.user:response.target);
+                        }
                         _connection.Write(send);
                     }
 
                     /* CROWFACTS the deserving */
-                    if (crowFactsSubscribers.Contains(response.user) && randomSeed.Next(10) < 8) {
+                    else if (crowFactsSubscribers.Contains(response.user) && randomSeed.Next(10) < 8) {
                         IRCClientMessage send = new IRCClientMessage();
                         int location = randomSeed.Next(crowFacts.Length);
                         send.PrivMsg(crowFacts[location],response.user);
                         _connection.Write(send);
+                    }
+
+                    if (WebPageAPI.URLRegEx.Match(response.message).Success) {
+                        try { 
+                        IRCClientMessage send = new IRCClientMessage();
+                        send.PrivMsg(String.Format("Web page title: {0}",WebPageAPI.GetPageTitle(WebPageAPI.URLRegEx.Match(response.message).Value)),(response.target.Equals(Nick))?response.user:response.target);
+                        _connection.Write(send);
+                        } catch (Exception e) {
+                            e.ToString();
+                        }
                     }
                 }
             }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AniNIX.Shared;
 
 namespace AniNIX.TheRaven {
 
@@ -49,7 +50,7 @@ namespace AniNIX.TheRaven {
 		}
 
 		public override string ToString() {
-			if (Raven.verbosity == Verbosity.Explicit) { 
+			if (ReportMessage.verbosity == Verbosity.Explicit) { 
 				return String.Format(">>> {0}\nUser: {1}\nServer: {2}\nmsgCode: {3}\nTarget: {4}\nMessage: {5}\n",incomingIRCString,user,server,msgCode,target,message);
 			} else {
 				return String.Format(">>> {0}",incomingIRCString);

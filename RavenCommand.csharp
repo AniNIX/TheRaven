@@ -3,6 +3,7 @@ using System.IO;
 using System.Text;
 using System.Diagnostics;
 using System.Collections.Generic;
+using AniNIX.Shared;
 
 namespace AniNIX.TheRaven {
 
@@ -58,6 +59,7 @@ namespace AniNIX.TheRaven {
                             int result = theRaven.randomSeed.Next(Int32.Parse(bySpace[1]));
                             send.PrivMsg(String.Format("{0}",result+1),(incoming.target.Equals(theRaven.Nick))?incoming.user:incoming.target);
                         } catch (Exception e) {
+                            e.ToString();
                             send.PrivMsg("Bad formatting.",(incoming.target.Equals(theRaven.Nick))?incoming.user:incoming.target);
                         }
                     }
@@ -68,7 +70,7 @@ namespace AniNIX.TheRaven {
                         send.PrivMsg(theRaven.helpText,incoming.user);
                     } else {
                         try {
-                            send.PrivMsg(RavenExecute.Command(String.Format("wget -q -O - \"http://tiny-url.info/api/v1/create?format=text&apikey=\"$(api-keys tinyurl)\"&provider=x_co&url={0}\"",bySpace[1])),(incoming.target.Equals(theRaven.Nick))?incoming.user:incoming.target);
+                            send.PrivMsg(ExecuteCommand.Run(String.Format("wget -q -O - \"http://tiny-url.info/api/v1/create?format=text&apikey=\"$(api-keys tinyurl)\"&provider=x_co&url={0}\"",bySpace[1])),(incoming.target.Equals(theRaven.Nick))?incoming.user:incoming.target);
                         } catch (Exception e) {
                             ReportMessage.Log(Verbosity.Error,e.ToString());
                             send.PrivMsg("TinyURL error. Could not get link.",(incoming.target.Equals(theRaven.Nick))?incoming.user:incoming.target);
@@ -103,7 +105,7 @@ namespace AniNIX.TheRaven {
                             ReportMessage.Log(Verbosity.Error,"Make sure user raven can write to /var/log/r.msg.log");
                         }
                         try {
-                            RavenExecute.Command(String.Format("djinni admin \"Page from {0}\"",incoming.user));
+                            ExecuteCommand.Run(String.Format("djinni admin \"Page from {0}\"",incoming.user));
                             send.PrivMsg("Sent!",incoming.user);
                         } catch (Exception e) {
                             ReportMessage.Log(Verbosity.Error,e.ToString());
@@ -114,7 +116,7 @@ namespace AniNIX.TheRaven {
                     return;
                 case "r.uptime":
                     try {
-                        send.PrivMsg(RavenExecute.Command("uptime"),(incoming.target.Equals(theRaven.Nick))?incoming.user:incoming.target);
+                        send.PrivMsg(ExecuteCommand.Run("uptime"),(incoming.target.Equals(theRaven.Nick))?incoming.user:incoming.target);
                     } catch (Exception e) {
                         e.ToString();
                         send.PrivMsg("Can't get uptime",(incoming.target.Equals(theRaven.Nick))?incoming.user:incoming.target);
@@ -123,7 +125,7 @@ namespace AniNIX.TheRaven {
                     return;
                 case "r.heartbeat":
                     try {
-                        String[] byLine = RavenExecute.Command("heartbeat-client").Split('\n');
+                        String[] byLine = ExecuteCommand.Run("heartbeat-client").Split('\n');
                         for (int i = 0; i < byLine.Length; i++) {
                             send.PrivMsg(byLine[i],incoming.user);
                             connection.Write(send);

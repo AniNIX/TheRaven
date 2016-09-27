@@ -1,0 +1,4 @@
+localhost
+6667
+TheRaven-Test
+somepass

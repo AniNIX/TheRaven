@@ -1,22 +1,20 @@
-CONFDIR := /usr/local/etc/TheRaven
+CONFDIR = /usr/local/etc/TheRaven
 
-compile: /usr/bin/mcs /usr/bin/mono clean ./raven.csharp ./connection.csharp ./ravencommand.csharp /bin/bash /usr/bin/mail /usr/bin/wget /usr/local/bin/djinni ./chatbot-support.bash
+compile: clean /usr/bin/mcs /usr/bin/mono clean /bin/bash /usr/bin/mail /usr/bin/wget /usr/local/bin/djinni ./chatbot-support.bash
 	if [ ! -d ../Djinni ]; then git clone -C '..' https://aninix.net/foundation/Djinni; fi
 	git -C ../Djinni pull
 	if [ ! -d ../SharedLibraries ];  then git clone -C '..' https://aninix.net/foundation/SharedLibraries; fi
 	git -C ../SharedLibraries pull
-	mcs -out:raven.mono ../SharedLibraries/CSharp/*.csharp *.csharp 
+	mcs -out:raven.mono ../SharedLibraries/CSharp/*.csharp *.csharp Raven.csharp
 
 clean:
-	if [ "$$(ls ./*~ 2>/dev/null | wc -l)" -gt 0 ]; then rm -Rf *~; fi
-	if [ "$$(ls ./*.mono 2>/dev/null | wc -l)" -gt 0 ]; then rm -Rf *.mono; fi
-	if [ "$$(ls ./\#* 2>/dev/null | wc -l)" -gt 0 ]; then rm -Rf \#*; fi
+	for i in raven.mono; do if [ -f $$i ]; then rm $$i; fi; done
 
 edit:
 	emacs -nw raven.csharp
 
 test: compile
-	script -c "mono ./raven.mono -c ${CONFDIR}-Test -v" /tmp/raven-test.log
+	script -c "mono ./raven.mono -c raven-test.conf -v" /tmp/raven-test.log
 
 check-for-verbosity:
 	grep Console.WriteLine *.csharp | egrep -v 'verbosity|raven.csharp'; echo

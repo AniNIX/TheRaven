@@ -46,7 +46,7 @@ namespace AniNIX.TheRaven {
                     if (theRaven.magic8 == null) {
                         send.PrivMsg("Magic8 not loaded",(incoming.target.Equals(theRaven.Nick))?incoming.user:incoming.target);
                     } else {
-                        int location = theRaven.randomSeed.Next(theRaven.magic8.Length);
+                        int location = theRaven.randomSeed.Next(theRaven.magic8.Count);
                         send.PrivMsg(theRaven.magic8[location],(incoming.target.Equals(theRaven.Nick))?incoming.user:incoming.target);
                     }
                     connection.Write(send);
@@ -135,7 +135,10 @@ namespace AniNIX.TheRaven {
                         send.PrivMsg("Can't get heartbeat",incoming.user);
                     }
                     return;
-
+                case "r.searches": 
+                    send.PrivMsg(theRaven.searchesIndex,(incoming.target.Equals(theRaven.Nick))?incoming.user:incoming.target);
+                    connection.Write(send);
+                    return;
             }
 
             /* SEARCHES */
@@ -168,7 +171,6 @@ namespace AniNIX.TheRaven {
                             connection.Write(send);
                         }
                         send.PrivMsg("End subscribers",incoming.user);
-                        send.PrivMsg(theRaven.helpText,(incoming.target.Equals(theRaven.Nick))?incoming.user:incoming.target);
                     } else if (theRaven.crowFacts == null) {
                         send.PrivMsg("CrowFacts not loaded.",(incoming.target.Equals(theRaven.Nick))?incoming.user:incoming.target);
                     } else {

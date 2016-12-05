@@ -1,1 +1,0 @@
-Available commands are r.raven, r.magic8, r.msg <Memo for DarkFeather>, r.google <Google search>, r.sound <Soundcloud search>, r.image <Image search>, r.wiki <Wikipedia search>, r.dict <Dictionary search>, r.yt <youtube search>, r.urban <Urban dictionary search>, r.hoogle <Haskell Hoogle search>, r.so <StackOverflow search>, r.man <manpage search>, and r.tropes <TV Tropes search>

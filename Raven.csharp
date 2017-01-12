@@ -249,7 +249,9 @@ namespace AniNIX.TheRaven {
                     if (response.msgCode.Equals("PRIVMSG") && !String.IsNullOrWhiteSpace(response.message) && (response.target.Equals(Nick) || response.message.StartsWith(String.Format("{0}:",Nick)) || response.message.EndsWith(String.Format("{0}!",Nick)) || response.message.EndsWith(String.Format("{0}?",Nick)) || response.message.EndsWith(String.Format("{0}.",Nick)) || response.message.EndsWith(String.Format("{0}",Nick)))) {
                         IRCClientMessage send = new IRCClientMessage();
                         try {
-                            send.PrivMsg(ExecuteCommand.Run(String.Format("bash /usr/local/src/TheRaven/chatbot-support.bash \"{0}\" {1}",response.message.Replace("'","").Replace("\"","").Split('\n')[0].Trim(),Nick)).Trim(),(response.target.Equals(Nick))?response.user:response.target);
+                            String aliceResponse = ExecuteCommand.Run(String.Format("bash /usr/local/src/TheRaven/chatbot-support.bash \"{0}\" {1}",response.message.Replace("'","").Replace("\"","").Split('\n')[0].Trim(),Nick)).Trim();
+                            if (String.IsNullOrWhiteSpace(aliceResponse)) throw new Exception("No response from ALICE chatbot service");
+                            send.PrivMsg(aliceResponse,(response.target.Equals(Nick))?response.user:response.target);
                         } catch (Exception e) {
                             e.ToString();
                             send.PrivMsg("Cannot talk right now.",(response.target.Equals(Nick))?response.user:response.target);

@@ -78,6 +78,14 @@ namespace AniNIX.TheRaven {
                     }
                     connection.Write(send);
                     return;
+                case "r.math":
+                    if (bySpace.Length < 2) {
+
+                    } else {
+                        send.PrivMsg(ExecuteCommand.Run(String.Format("/bin/bash /usr/local/src/TheRaven/math-support.bash \"{0}\"",incoming.message.Replace("r.math ","").Replace("'",""))),(incoming.target.Equals(theRaven.Nick))?incoming.user:incoming.target);
+                    }
+                    connection.Write(send);
+                    return;
                 case "r.msg":
                     if (bySpace.Length < 2) {
                         send.PrivMsg(theRaven.helpText,incoming.user);

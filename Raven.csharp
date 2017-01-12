@@ -84,7 +84,7 @@ namespace AniNIX.TheRaven {
             notifications = conf.ReadSection("Notifications");
             whitelist = conf.ReadSectionLines("Whitelist");
             blacklist = conf.ReadSectionLines("Blacklist");
-            helpText = "Available commands are r.raven, r.magic8, r.uptime, r.heartbeat, r.msg <memo for admin>, r.d <dice test>, r.tinyurl <url>, and r.searches";
+            helpText = "Available commands are r.d <dice test>, r.heartbeat, r.magic8, r.math <math problem>, r.msg <memo for admin>, r.raven, r.searches, r.tinyurl <url>, and r.uptime";
             searches = conf.ReadSectionLines("Searches");
             StringBuilder searchIndexBuilder = new StringBuilder();
             foreach (String searchLine in searches) { 

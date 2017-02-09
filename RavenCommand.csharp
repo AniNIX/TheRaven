@@ -70,7 +70,7 @@ namespace AniNIX.TheRaven {
                         send.PrivMsg(theRaven.helpText,incoming.user);
                     } else {
                         try {
-                            send.PrivMsg(ExecuteCommand.Run(String.Format("wget -q -O - \"http://tiny-url.info/api/v1/create?format=text&apikey=\"$(api-keys tinyurl)\"&provider=x_co&url={0}\"",bySpace[1])),(incoming.target.Equals(theRaven.Nick))?incoming.user:incoming.target);
+                            send.PrivMsg(ExecuteCommand.Run(String.Format("wget -q -O - \"http://tiny-url.info/api/v1/create?format=text&apikey=\"$(api-keys tinyurl)\"&provider=tinyurl_com&url={0}\"",bySpace[1].Replace("\"",""))),(incoming.target.Equals(theRaven.Nick))?incoming.user:incoming.target);
                         } catch (Exception e) {
                             ReportMessage.Log(Verbosity.Error,e.ToString());
                             send.PrivMsg("TinyURL error. Could not get link.",(incoming.target.Equals(theRaven.Nick))?incoming.user:incoming.target);
@@ -82,7 +82,7 @@ namespace AniNIX.TheRaven {
                     if (bySpace.Length < 2) {
 
                     } else {
-                        send.PrivMsg(ExecuteCommand.Run(String.Format("/bin/bash /usr/local/src/TheRaven/math-support.bash \"{0}\"",incoming.message.Replace("r.math ","").Replace("'",""))),(incoming.target.Equals(theRaven.Nick))?incoming.user:incoming.target);
+                        send.PrivMsg(ExecuteCommand.Run(String.Format("/bin/bash /usr/local/src/TheRaven/math-support.bash \"{0}\"",incoming.message.Replace("r.math ","").Replace("'","").Replace("\"",""))),(incoming.target.Equals(theRaven.Nick))?incoming.user:incoming.target);
                     }
                     connection.Write(send);
                     return;

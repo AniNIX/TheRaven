@@ -113,7 +113,7 @@ namespace AniNIX.TheRaven {
                             ReportMessage.Log(Verbosity.Error,"Make sure user raven can write to /var/log/r.msg.log");
                         }
                         try {
-                            ExecuteCommand.Run(String.Format("djinni admin \"Page from {0}\"",incoming.user));
+                            ExecuteCommand.Run(String.Format("pb push \"Page from {0}\"",incoming.user));
                             send.PrivMsg("Sent!",incoming.user);
                         } catch (Exception e) {
                             ReportMessage.Log(Verbosity.Error,e.ToString());
@@ -145,6 +145,15 @@ namespace AniNIX.TheRaven {
                     return;
                 case "r.searches": 
                     send.PrivMsg(theRaven.searchesIndex,(incoming.target.Equals(theRaven.Nick))?incoming.user:incoming.target);
+                    connection.Write(send);
+                    return;
+                case "r.wikidiff":
+                    String[] byQuote = incoming.message.Split('"');
+                    try {
+                        send.PrivMsg(String.Format("https://wikidiff.com/{0}/{1}",byQuote[1],byQuote[3]),(incoming.target.Equals(theRaven.Nick))?incoming.user:incoming.target);
+                    } catch(IndexOutOfRangeException e) {
+                        send.PrivMsg("Format: r.wikidiff \"Search 1\" \"Search 2\"",(incoming.target.Equals(theRaven.Nick))?incoming.user:incoming.target);
+                    }
                     connection.Write(send);
                     return;
             }

@@ -23,7 +23,8 @@ namespace AniNIX.TheRaven {
         public List<String> channels; //This is the list of channels to join
         public List<String> whitelist; //This is the list of admin users.
         public List<String> blacklist; // This is the list of blocked people.
-        public String helpText; // This is the text to send when people ask for help -- this is configurable to allow for skinning	
+        public String helpText = "Available commands are r.d <dice test>, r.heartbeat, r.magic8, r.math <math problem>, r.msg <memo for admin>, r.raven, r.searches, r.tinyurl <url>, r.wikidiff \"one\" \"other\", and r.uptime";
+        // This is the text to send when people ask for help -- this is configurable to allow for skinning	
         public List<String> searches; //These are the searches
         public String searchesIndex; //This is the helptext for the searches
         public List<String> magic8; //These are the strings to return like a Magic 8-ball to questions. 
@@ -58,34 +59,52 @@ namespace AniNIX.TheRaven {
         // TODO: This and ParseArgs may get punted into their own static class to improve readability.
         private void ConfigureSelfFromFiles() {
 
-            String confFilePath = String.Format("/usr/local/etc/TheRaven/{0}",_configFile);
-
-            if (!File.Exists(confFilePath)) {
-                ReportMessage.Log(Verbosity.Error,"Configuration file doesn't exist.");
-                return;
+            if (!File.Exists(_configFile)) {
+                throw new Exception(String.Format("Configuration file {0} doesn't exist.",_configFile));
             }
 
-            ReportMessage.Log(Verbosity.Always,String.Format("Reading from config file in /usr/local/etc/{0} and the global files in the same directory...",_configFile)); 
-            Configure conf = new Configure(confFilePath);
+            ReportMessage.Log(Verbosity.Always,String.Format("Reading from config file in {0} and the global files in the same directory...",_configFile)); 
+            Configure conf = new Configure(_configFile);
 
             //These are locals that will be used throughout
-            Dictionary<String,String> loginDefaults = conf.ReadSection("Login");
-            this.Host = loginDefaults["host"];
-            this.Port = Int32.Parse(loginDefaults["port"]);
-            this.Nick = loginDefaults["username"];
-            this._nickServPass = loginDefaults["password"];
+            ReportMessage.Log(Verbosity.Verbose,"Reading login info");
+            try { 
+                Dictionary<String,String> loginDefaults = conf.ReadSection("Login");
+                this.Host = loginDefaults["host"];
+                this.Port = Int32.Parse(loginDefaults["port"]);
+                this.Nick = loginDefaults["username"];
+                this._nickServPass = loginDefaults["password"];
 
-            channels=new List<String>();
-            foreach (String channel in conf.ReadSectionLines("Rooms")) {
-                channels.Add(String.Format("#{0}",channel));
+                channels=new List<String>();
+                foreach (String channel in conf.ReadSectionLines("Rooms")) {
+                    channels.Add(String.Format("#{0}",channel));
+                }
+            } catch (Exception e) {
+                throw new Exception("Failed to read default login info from Login section in configuration.");
             }
 
             //Parse the lists.
-            notifications = conf.ReadSection("Notifications");
-            whitelist = conf.ReadSectionLines("Whitelist");
-            blacklist = conf.ReadSectionLines("Blacklist");
-            helpText = "Available commands are r.d <dice test>, r.heartbeat, r.magic8, r.math <math problem>, r.msg <memo for admin>, r.raven, r.searches, r.tinyurl <url>, and r.uptime";
-            searches = conf.ReadSectionLines("Searches");
+            ReportMessage.Log(Verbosity.Verbose,"Building lists.");
+            try { 
+                notifications = conf.ReadSection("Notifications");
+            } catch (Exception e) {
+                throw new Exception("Couldn't read Notifications section.");
+            }
+            try {
+                whitelist = conf.ReadSectionLines("Whitelist");
+            } catch (Exception e) {
+                throw new Exception("Couldn't read Whitelist section.");
+            }
+            try {
+                blacklist = conf.ReadSectionLines("Blacklist");
+            } catch (Exception e) {
+                throw new Exception("Couldn't read Blacklist section.");
+            }
+            try {
+                searches = conf.ReadSectionLines("Searches");
+            } catch (Exception e) {
+                throw new Exception("Couldn't read Searches section.");
+            }
             StringBuilder searchIndexBuilder = new StringBuilder();
             foreach (String searchLine in searches) { 
                 String[] byPipe = searchLine.Split('|');
@@ -138,7 +157,7 @@ namespace AniNIX.TheRaven {
                             //TODO Add helptext
                             break;
                         case "-c":
-                            if (i < args.Length-1) _configFile = args[++i];
+                            if (i < args.Length-1) _configFile = String.Format("/usr/local/etc/TheRaven/{0}",args[++i]);
                             break;
                         case "--version":
                             ReportMessage.Log(Verbosity.Always,"AniNIX::TheRaven version 0.2");
@@ -165,16 +184,17 @@ namespace AniNIX.TheRaven {
 
         /// <summary>
         /// Create a raven with default settings.
-        /// </summary>
-        public Raven(String host = "localhost", int port = 6667, String nick = "TheRaven-Guest", String nickServPass = "null", String autoSend = null, String _configFile = "raven.conf", Verbosity verbosity = Verbosity.Verbose) {
+        /* </summary>
+        public Raven(String host = "localhost", int port = 6667, String nick = "TheRaven-Guest", String nickServPass = "null", String autoSend = null, String configFile = "raven.conf", Verbosity verbosity = Verbosity.Verbose) {
             this.Host = host;
             Port = port;
             Nick = nick;
             _nickServPass = nickServPass;
             _autoSend = autoSend;
-            this._configFile = _configFile;
+            this._configFile = String.Format("/usr/local/etc/TheRaven/{0}",configFile);
             ReportMessage.verbosity = verbosity;
         }
+        */
 
         /// <summary>
         /// Identify to the server and join the initial channels
@@ -236,6 +256,7 @@ namespace AniNIX.TheRaven {
                     if (notifications.TryGetValue(response.target,out result)) {
                         if (response.message.Contains(result)) {
                             try {
+                                ReportMessage.Log(Verbosity.Verbose,"Sending notification.");
                                 ExecuteCommand.Run(String.Format("/usr/local/bin/djinni admin \"Found {1} in {0}\"",response.target,result));
                             } catch (Exception e) {
                                 ReportMessage.Log(Verbosity.Error,e.ToString());
@@ -344,7 +365,8 @@ namespace AniNIX.TheRaven {
                     Host = null;
                     Port = 0;
                     _nickServPass = null;
-                    _autoSend = null;                    _configFile = null;
+                    _autoSend = null;
+                    _configFile = null;
                     whitelist = null;
                     blacklist = null;
                     magic8 = null;
@@ -382,7 +404,7 @@ namespace AniNIX.TheRaven {
                     //If an exception gets here, something went wrong
                 } catch (Exception e) {
                     ReportMessage.Log(Verbosity.Error,"Unexpected exception caught!");
-                    ReportMessage.Log(Verbosity.Error,e.ToString());
+                    ReportMessage.Log(Verbosity.Error,e.Message);
                     return 1;
                 }
             }

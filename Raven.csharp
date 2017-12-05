@@ -4,6 +4,9 @@ using System.IO;
 using System.Text;
 using AniNIX.Shared;
 
+#pragma warning disable 0168 
+#pragma warning disable 2002
+
 namespace AniNIX.TheRaven {
 
     public sealed class Raven : IDisposable {

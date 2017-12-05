@@ -5,6 +5,8 @@ using System.Diagnostics;
 using System.Collections.Generic;
 using AniNIX.Shared;
 
+#pragma warning disable 0168 
+
 namespace AniNIX.TheRaven {
 
     public static class RavenCommand {

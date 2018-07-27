@@ -1,4 +1,5 @@
 using System;
+using System.Text.RegularExpressions;
 using System.Collections.Generic;
 using AniNIX.Shared;
 
@@ -13,6 +14,9 @@ namespace AniNIX.TheRaven {
 		public string target { get; protected set; }
 		public string message { get; protected set; }
 
+        // Adding whitelist for default Discord-Bridge config
+        private string _discordRegex = "\\<.+\\>\\s+";
+
 		public IRCServerMessage(String serverString) {
 			incomingIRCString = serverString.Trim();
 			try {
@@ -23,6 +27,7 @@ namespace AniNIX.TheRaven {
                 messageL.RemoveAt(0);
                 messageL.RemoveAt(0);
                 message = String.Join(":",messageL.ToArray());
+                message = Regex.Replace(message,_discordRegex,"");
 				if (bySpace[0].Contains("!")) {
 					String[] byExclamation = bySpace[0].Split('!');
 					user = byExclamation[0];

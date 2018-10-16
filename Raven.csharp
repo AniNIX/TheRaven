@@ -39,6 +39,8 @@ namespace AniNIX.TheRaven {
 
         public Dictionary<String,int> MailerCount = new Dictionary<String,int>(); // Messages may only be sent up to a maximum to the admins.
 
+        private RavenNetListener _netListener;
+
         /// <summary>
         /// Show the settings used by this Raven.
         /// </summary>
@@ -77,6 +79,7 @@ namespace AniNIX.TheRaven {
                 this.Port = Int32.Parse(loginDefaults["port"]);
                 this.Nick = loginDefaults["username"];
                 this._nickServPass = loginDefaults["password"];
+                this._netListener = new RavenNetListener(loginDefaults["password"]);
 
                 channels=new List<String>();
                 foreach (String channel in conf.ReadSectionLines("Rooms")) {
@@ -160,7 +163,7 @@ namespace AniNIX.TheRaven {
                             //TODO Add helptext
                             break;
                         case "-c":
-                            if (i < args.Length-1) _configFile = String.Format("/usr/local/etc/TheRaven/{0}",args[++i]);
+                            if (i < args.Length-1) _configFile = args[++i];
                             break;
                         case "--version":
                             ReportMessage.Log(Verbosity.Always,"AniNIX::TheRaven version 0.2");
@@ -249,6 +252,9 @@ namespace AniNIX.TheRaven {
         /// </summary>
         public void LoopOnTraffic() {
             ReportMessage.Log(Verbosity.Verbose,"Looping on trafffic now! We're useful!");
+            // Start a network listener to allow relaying traffic via ncat into IRCd.
+            this._netListener.NetListener(this._connection);
+            // Loop on main connect to ircd
             while (true) {
                 IRCServerMessage response = _connection.Read();
                 if (response != null && response.message != null && response.message.Length > 3 && response.message.Substring(0,2).Equals("r.")) {

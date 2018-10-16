@@ -10,7 +10,7 @@ clean:
 test: compile
 	script -c "mono ./raven.mono -c raven-test.conf -v" ${pkgdir}/tmp/raven-test.log
 
-install: compile /usr/sbin/pwgen
+install: compile 
 	mkdir -p ${pkgdir}/opt
 	cp raven.mono ${pkgdir}/opt/raven.mono
 	if [ ! -d ${CONFDIR} ]; then mkdir -p ${CONFDIR}; cp sample-confs/* ${CONFDIR}; fi

@@ -1,0 +1,80 @@
+using System;
+using System.Linq;
+using System.Net;
+using System.Net.Sockets;
+using System.Threading;
+using AniNIX.Shared;
+
+namespace AniNIX.TheRaven {
+
+    //TODO Add comments
+
+    //IRC messages are a primitive data type for us to use.
+    public class RavenNetListener {
+
+        private String _key;
+        private Connection _ircdConnection;
+
+        private void _RavenSend(Connection ircdConnection, String channel, String message) {
+
+            IRCClientMessage ircMessage = new IRCClientMessage();
+            ircMessage.PrivMsg(message,channel);
+            ircdConnection.Write(ircMessage);
+        }
+
+        private void _netThread() {
+            while (true) {
+                try
+                {
+                    // Open a new listener on localhost port 9501
+                    IPAddress ipAddress = IPAddress.Parse("127.0.0.1");
+                    TcpListener listener = new TcpListener(ipAddress, 9501);
+                    listener.Start();
+                    // Accept all connections
+                    while (true)
+                    {
+                        Socket client = listener.AcceptSocket();
+                        byte[] data = new byte[512];
+                        int size = client.Receive(data);
+                        // Receive and parse string.
+                        string received = "";
+                        for (int i = 0; i < size; i++)
+                            received += Convert.ToChar(data[i]);
+                        String[] bySpace = received.Split(' ');
+                        // If the key matches, ... 
+                        if (this._key.Equals(bySpace[0])) {
+                            ReportMessage.Log(Verbosity.Verbose,"Accepted passphrase -- sending message.");
+                            String channel = bySpace[1];
+                            String message = String.Join(" ",bySpace.Skip(2).ToArray());
+                            // Send to IRC
+                            _RavenSend(_ircdConnection,channel,message);
+
+                        } else {
+                            ReportMessage.Log(Verbosity.Error,"Passphrase rejected for NetListener connection.");
+                        }
+                        //Clean up
+                        client.Close();
+                    }
+                }
+                // If we got here, something went wrong. Log.
+                catch (Exception e)
+                {
+                   ReportMessage.Log(Verbosity.Error,String.Format("RavenNetListener died for unknown reason: {0}",e.Message));
+                }
+            }
+        }
+
+        public void NetListener(Connection ircdConnection) {
+            this._ircdConnection = ircdConnection;
+            ReportMessage.Log(Verbosity.Verbose,"Starting NetListener thread...");
+            ThreadStart netListenerWorker = _netThread;
+            Thread netListenerThread = new Thread(netListenerWorker);
+            netListenerThread.Start();
+            ReportMessage.Log(Verbosity.Verbose,"Started.");
+        }
+
+        public RavenNetListener(String key) {
+            this._key = key;
+        }
+    }
+}

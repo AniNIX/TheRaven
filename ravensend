@@ -1,0 +1,48 @@
+#!/bin/bash
+
+# TODO Add comments
+
+# Default variables
+unset channel
+unset message
+unset passphrase
+export file="/usr/local/etc/TheRaven/raven.conf"
+export port="9501" 
+export host="localhost" 
+
+# Show help
+function usage() {
+    echo "Usage: $0 -c chan -m msg [ -f file -t host -p port ]" 
+    echo "       $0 -h" echo "Add -v to increase verbosity"
+    echo "Passphrase is pulled from Raven config, set to ${file}"
+}
+
+# Parse arguments
+while getopts 'c:hm:p:P:t:v' OPTION; do
+    case "$OPTION" in 
+        c) channel="${OPTARG}" ;;
+        f) file="${OPTARG}" ;;
+        h) usage; exit 0 ;;
+        m) message="${OPTARG}" ;;
+        p) port="${OPTARG}" ;;
+        t) host="${OPTARG}" ;;
+        v) set -x ;;
+        *) usage; exit 1 ;;
+    esac
+done
+
+# Check inputs.
+if [ -z "$channel" ] || [ -z "$message" ] || [ -z "$file" ] || [ -z "$port" ] || [ -z "$host" ]; then
+    usage;
+    exit 1;
+fi
+
+# Try to get the passphrase.
+passphrase="$(egrep -m 1 '^password=' "$file" | sed 's/^password=//')"
+if [ -z "$passphrase" ]; then
+    echo Couldn\'t identify passphrase.
+    exit 2;
+fi
+
+# Send format to socket
+printf "%s %s %s" "$passphrase" "$channel" "$message" | ncat "$host" "$port"

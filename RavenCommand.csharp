@@ -114,13 +114,6 @@ namespace AniNIX.TheRaven {
                             ReportMessage.Log(Verbosity.Error,e.Message);
                             ReportMessage.Log(Verbosity.Error,"Make sure user raven can write to /var/log/r.msg.log");
                         }
-                        try {
-                            ExecuteCommand.Run(String.Format("pb push \"Page from {0}\"",incoming.user));
-                            send.PrivMsg("Sent!",incoming.user);
-                        } catch (Exception e) {
-                            ReportMessage.Log(Verbosity.Error,e.ToString());
-                            send.PrivMsg("Mailer error. Could not send.",incoming.user);
-                        }
                     }
                     connection.Write(send);
                     return;

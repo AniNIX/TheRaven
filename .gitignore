@@ -1,5 +1,5 @@
 raven.mono
-theraven-*.tar.xz
+TheRaven-*.pkg.tar.zst
 pkg/
 src/
 .config

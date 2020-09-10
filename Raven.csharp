@@ -59,7 +59,7 @@ namespace AniNIX.TheRaven {
         }
 
         /// <summary>
-        /// Read from the files in the /usr/local/etc/TheRaven directory to configure this Raven
+        /// Read from the files in the current directory to configure this Raven
         /// </summary>
         // TODO: This and ParseArgs may get punted into their own static class to improve readability.
         private void ConfigureSelfFromFiles() {
@@ -118,10 +118,30 @@ namespace AniNIX.TheRaven {
             }
             searchesIndex = searchIndexBuilder.ToString();
 
-            //Read the globals 
-            magic8 = (new Configure("/usr/local/etc/TheRaven/magic8.txt")).GetLines();
-            crowFacts = (new Configure("/usr/local/etc/TheRaven/crowfacts.txt")).GetLines();
+            //Read the globals
+            magic8 = (new Configure("magic8.txt")).GetLines();
+            crowFacts = (new Configure("crowfacts.txt")).GetLines();
         }
+
+        /// <summary>
+        /// Print helptext and exit
+        /// param retcode: what to return to the system.
+        /// </summary>
+        public void Usage() {
+            ReportMessage.Log(Verbosity.Always,"Usage: mono ./raven.mono -c conf # start the Raven with the conf file");
+            ReportMessage.Log(Verbosity.Always,"Usage: mono ./raven.mono -h # Get help");
+            ReportMessage.Log(Verbosity.Always,"");
+            ReportMessage.Log(Verbosity.Always,"The following flags are optional:");
+            ReportMessage.Log(Verbosity.Always,"-n Nickname");
+            ReportMessage.Log(Verbosity.Always,"-t Host");
+            ReportMessage.Log(Verbosity.Always,"-p Port");
+            ReportMessage.Log(Verbosity.Always,"-v Verbose");
+            ReportMessage.Log(Verbosity.Always,"-q Quiet");
+            ReportMessage.Log(Verbosity.Always,"-P NickServ passphrase");
+            ReportMessage.Log(Verbosity.Always,"-a Autosend command");
+            throw new RavenExitedException();
+        }
+
 
         /// <summary>
         /// Parse arguments from the command line.
@@ -135,7 +155,7 @@ namespace AniNIX.TheRaven {
                         case "-n":
                             if (i < args.Length-1) Nick = args[++i];
                             break;
-                        case "-h":
+                        case "-t":
                             if (i < args.Length-1) Host = args[++i];
                             break;
                         case "-p":
@@ -155,18 +175,14 @@ namespace AniNIX.TheRaven {
                         case "-P":
                             if (i < args.Length-1) _nickServPass = args[++i];
                             break;
-                            //TODO: Add daemonizing?
                         case "-a":
                             if (i < args.Length-1) _autoSend = args[++i];
                             break;
-                        case "--help":
-                            //TODO Add helptext
-                            break;
+                        case "-h":
+                            Usage();
+                            return;
                         case "-c":
                             if (i < args.Length-1) _configFile = args[++i];
-                            break;
-                        case "--version":
-                            ReportMessage.Log(Verbosity.Always,"AniNIX::TheRaven version 0.2");
                             break;
                     }
                 }
@@ -184,6 +200,7 @@ namespace AniNIX.TheRaven {
             // If we have arguments
             this.ParseArguments(args);
             this.ConfigureSelfFromFiles();
+            this._isDisposed = false;
             ReportMessage.Log(Verbosity.VeryVerbose,"Started with these values:");
             ReportMessage.Log(Verbosity.VeryVerbose,this.ToString());
         }
@@ -260,26 +277,12 @@ namespace AniNIX.TheRaven {
                 if (response != null && response.message != null && response.message.Length > 3 && response.message.Substring(0,2).Equals("r.")) {
                     RavenCommand.Respond(_connection,response,this);
                 } else if (response != null) {
-                    //Try to notify the admins when a given string is found in a given channel
-                    String result;
-                    if (notifications.TryGetValue(response.target,out result)) {
-                        if (response.message.Contains(result)) {
-                            try {
-                                ReportMessage.Log(Verbosity.Verbose,"Sending notification.");
-                                ExecuteCommand.Run(String.Format("/usr/local/bin/djinni admin \"Found {1} in {0}\"",response.target,result));
-                            } catch (Exception e) {
-                                ReportMessage.Log(Verbosity.Error,e.ToString());
-                            }
-
-                        }
-                    }
-
                     // Integrate with the ALICE chatbot project.
                     // TODO Create a local instance instead
                     if (response.msgCode.Equals("PRIVMSG") && !String.IsNullOrWhiteSpace(response.message) && (response.target.Equals(Nick) || response.message.StartsWith(String.Format("{0}:",Nick)) || response.message.EndsWith(String.Format("{0}!",Nick)) || response.message.EndsWith(String.Format("{0}?",Nick)) || response.message.EndsWith(String.Format("{0}.",Nick)) || response.message.EndsWith(String.Format("{0}",Nick)))) {
                         IRCClientMessage send = new IRCClientMessage();
                         try {
-                            String aliceResponse = ExecuteCommand.Run(String.Format("bash /usr/local/src/TheRaven/chatbot-support.bash \"{0}\" {1}",response.message.Replace("'","").Replace("\"","").Split('\n')[0].Trim(),Nick)).Trim();
+                            String aliceResponse = ExecuteCommand.Run(String.Format("bash ./chatbot-support.bash \"{0}\" {1}",response.message.Replace("'","").Replace("\"","").Split('\n')[0].Trim(),Nick)).Trim();
                             if (String.IsNullOrWhiteSpace(aliceResponse)) throw new Exception("No response from ALICE chatbot service");
                             send.PrivMsg(aliceResponse,(response.target.Equals(Nick))?response.user:response.target);
                         } catch (Exception e) {
@@ -318,7 +321,9 @@ namespace AniNIX.TheRaven {
         /// Close the _connection
         /// </summary>
         private void CloseConnection() {
-            this._connection.Dispose();
+            if (this._connection != null) {
+                this._connection.Dispose();
+            }
         }
 
         /// <summary>
@@ -363,12 +368,15 @@ namespace AniNIX.TheRaven {
         }
 
         // This bool indicates whether we have disposed of this Raven
-        public bool _isDisposed = false;
+        public bool _isDisposed = true;
 
         /// <summary>
         /// Dispose of this Raven's's resources responsibly.
         /// </summary>
         private void Dispose(bool disposing) {
+            if (this == null) {
+                return;
+            }
             if (!_isDisposed) {
                 if (disposing) {
                     Host = null;
@@ -394,28 +402,33 @@ namespace AniNIX.TheRaven {
         /// The default function
         /// </summary>
         static int Main(string[] args) {
-            Raven theRaven = new Raven(args);
-            ReportMessage.Log(Verbosity.Verbose,"### AniNIX::TheRaven ###");
-            //Continue until we cleanly exit. 
-            while (true) {
-                try {
-                    return theRaven.Run();
-                    //If we are already identified, we're done. 
-                } catch (AlreadyIdentifiedException e) {
-                    ReportMessage.Log(Verbosity.Error,"There is already a Raven on this Host.");
-                    ReportMessage.Log(Verbosity.Error,e.Message);
-                    return 0;
-                    // Timeouts should result in a respawn
-                } catch (RavenTimedOutException e) {
-                    ReportMessage.Log(Verbosity.Always,"Connection timed out. Respawning");
-                    ReportMessage.Log(Verbosity.Verbose,e.Message);
-                    continue;
-                    //If an exception gets here, something went wrong
-                } catch (Exception e) {
-                    ReportMessage.Log(Verbosity.Error,"Unexpected exception caught!");
-                    ReportMessage.Log(Verbosity.Error,e.Message);
-                    return 1;
+            try {
+                Raven theRaven = new Raven(args);
+                ReportMessage.Log(Verbosity.Verbose,"### AniNIX::TheRaven ###");
+                //Continue until we cleanly exit. 
+                while (true) {
+                    try {
+                        return theRaven.Run();
+                        //If we are already identified, we're done. 
+                    } catch (AlreadyIdentifiedException e) {
+                        ReportMessage.Log(Verbosity.Error,"There is already a Raven on this Host.");
+                        ReportMessage.Log(Verbosity.Error,e.Message);
+                        return 0;
+                        // Timeouts should result in a respawn
+                    } catch (RavenTimedOutException e) {
+                        ReportMessage.Log(Verbosity.Always,"Connection timed out. Respawning");
+                        ReportMessage.Log(Verbosity.Verbose,e.Message);
+                        continue;
+                        //If an exception gets here, something went wrong
+                    } catch (Exception e) {
+                        ReportMessage.Log(Verbosity.Error,"Unexpected exception caught!");
+                        ReportMessage.Log(Verbosity.Error,e.Message);
+                        return 1;
+                    }
                 }
+            }
+            catch (RavenExitedException e) { 
+                return 0; 
             }
         }
     }

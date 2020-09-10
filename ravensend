@@ -7,7 +7,7 @@ unset channel
 unset message
 unset passphrase
 export file="/usr/local/etc/TheRaven/raven.conf"
-export port="9501" 
+export port="8373"
 export host="localhost" 
 
 # Show help

@@ -1,8 +1,9 @@
 [Unit]
-Description=AniNIX::Raven IRC Bot
+Description=AniNIX/Raven | IRC Bot
 After=network.target
 
 [Service]
+WorkingDirectory=/usr/local/etc/TheRaven
 ExecStart=/usr/bin/mono /opt/raven.mono -c raven.conf
 ExecReload=/bin/kill -HUP $MAINPID
 KillMode=process

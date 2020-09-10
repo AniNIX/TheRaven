@@ -1,20 +1,23 @@
-# Maintainer: Shikoba Kage <darkfeather@aninix.net>
-pkgname=theraven
-pkgver=0.1
-pkgrel=1
-epoch=
-pkgdesc="AniNIX::TheRaven \\\\ IRC Bot"
-arch=("x86_64")
-url="https://aninix.net/foundation/TheRaven"
-license=('custom')
-groups=()
-depends=('mono>=5.0.0' 'curl' 'grep' 'bash>=4.4' 'git>=2.13' 'pushbullet-cli' 'lynx' 'wget' 'nmap>=7.70')
+# Maintainer: DarkFeather <ircs://aninix.net:6697/darkfeather>
+depends=('mono>=5.0.0' 'curl' 'grep' 'bash>=4.4' 'git>=2.13' 'wget' 'nmap>=7.70')
 makedepends=('make>=4.2' 'pwgen')
 checkdepends=()
 optdepends=()
-provides=('theraven')
+pkgname="$(git config remote.origin.url | rev | cut -f 1 -d '/' | rev | sed 's/.git$//')"
+pkgver="$(git describe --tag --abbrev=0)"."$(git rev-parse --short HEAD)"
+pkgrel=1
+pkgrel() { 
+    echo $(( `git log "$(git describe --tag --abbrev=0)"..HEAD | grep -c commit` + 1 ))
+}
+epoch="$(git log | grep -c commit)"
+pkgdesc="$(head -n 1 README.md)"
+arch=("x86_64")
+url="$(git config remote.origin.url | sed 's/.git$//')"
+license=('custom')
+groups=()
+provides=("${pkgname}")
 conflicts=()
-replaces=()
+replaces=("${pkgname,,}", "aninix-${pkgname,,}")
 backup=()
 options=()
 install=
@@ -33,8 +36,8 @@ build() {
 }
 
 check() {
-    # We're not using test because it makes an actual connection. That case is useful but not quite as a regression the way PKGBUILD needs.
-	ls -l ../raven.mono
+    chmod -R u+r ../pkg
+	make -C .. test
 }
 
 package() {

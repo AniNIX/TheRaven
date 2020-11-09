@@ -1,6 +1,6 @@
 # Maintainer: DarkFeather <ircs://aninix.net:6697/darkfeather>
-depends=('mono>=5.0.0' 'curl' 'grep' 'bash>=4.4' 'git>=2.13' 'wget' 'nmap>=7.70')
-makedepends=('make>=4.2' 'pwgen')
+depends=('mono>=5.0.0' 'curl' 'grep' 'bash>=4.4' 'git>=2.13' 'wget' 'nmap>=7.70' 'Uniglot')
+makedepends=('make>=4.2' 'pwgen' 'Uniglot')
 checkdepends=()
 optdepends=()
 pkgname="$(git config remote.origin.url | rev | cut -f 1 -d '/' | rev | sed 's/.git$//')"

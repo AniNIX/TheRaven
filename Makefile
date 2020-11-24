@@ -23,6 +23,7 @@ reverse: ${pkgdir}/usr/lib/systemd/system/raven.service
 	cp  ${pkgdir}/usr/lib/systemd/system/raven.service .
 
 checkperm: ${pkgdir}/opt/raven.mono
+	if ! id raven; then useradd raven; echo User raven added; fi
 	chown -R raven:raven ${pkgdir}/opt/raven.mono ${CONFDIR}*
 	chmod 0600 ${pkgdir}/opt/raven.mono ${CONFDIR}*/*
 	chmod 0700 ${CONFDIR}*

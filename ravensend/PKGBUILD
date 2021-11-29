@@ -1,0 +1,47 @@
+# Maintainer: DarkFeather <ircs://aninix.net:6697/darkfeather>
+depends=('python' 'python-yaml' 'python-flask' 'bash' 'nmap>=7.91-1')
+makedepends=('make>=4.2' 'Uniglot')
+checkdepends=()
+optdepends=()
+pkgname="ravensend"
+pkgver="$(git describe --tag --abbrev=0)"."$(git rev-parse --short HEAD)"
+pkgrel=1
+pkgrel() { 
+    echo $(( `git log "$(git describe --tag --abbrev=0)"..HEAD | grep -c commit` + 1 ))
+}
+epoch="$(git log | grep -c commit)"
+pkgdesc="$(head -n 1 README.md)"
+arch=("x86_64")
+url="$(git config remote.origin.url | sed 's/.git$//')"
+license=('custom')
+groups=()
+provides=("${pkgname}")
+conflicts=()
+replaces=("${pkgname,,}", "aninix-${pkgname,,}")
+backup=()
+options=()
+install=
+changelog=
+source=()
+noextract=()
+md5sums=()
+validpgpkeys=()
+
+prepare() {
+    git pull
+}
+
+build() {
+    make -C ..
+}
+
+check() {
+    chmod -R u+r ../pkg
+	make -C .. test
+}
+
+package() {
+    export pkgdir="${pkgdir}"
+	make -C .. install
+    install -D -m644 ../../LICENSE "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+}

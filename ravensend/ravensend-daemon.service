@@ -1,0 +1,15 @@
+[Unit]
+Description=AniNIX/ravensend Daemon
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/ravensend-daemon
+ExecReload=/bin/kill -HUP $MAINPID
+KillMode=process
+Restart=always
+User=raven
+Group=raven
+WorkingDirectory=/usr/local/etc/
+
+[Install]
+WantedBy=multi-user.target

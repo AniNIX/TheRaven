@@ -1,13 +1,20 @@
 #!/bin/bash
 
-# TODO Add comments
+# File: ravensend
+# 
+# Description: This file sends a message to the Raven API
+# 
+# Package: AniNIX/ravensend
+# Copyright: WTFPL
+# 
+# Author: DarkFeather <ircs://aninix.net:6697/DarkFeather>
 
 # Default variables
 unset channel
 unset message
 unset passphrase
 export file="/usr/local/etc/TheRaven/raven.conf"
-export port="8373"
+unset port
 export host="localhost" 
 
 # Show help
@@ -17,8 +24,15 @@ function usage() {
     echo "Passphrase is pulled from Raven config, set to ${file}"
 }
 
+function getAPIConfigValue() {
+    # Get the api config value
+    # param attr: the attribute to look for
+    # returns: the attribute's value
+    egrep -A 10 '^\[ API \]$' "$file" | egrep -m 1 '^'"$1"'=' | sed 's/^'"$1"'=//'
+}
+
 # Parse arguments
-while getopts 'c:hm:p:P:t:v' OPTION; do
+while getopts 'c:f:hm:p:t:v' OPTION; do
     case "$OPTION" in 
         c) channel="${OPTARG}" ;;
         f) file="${OPTARG}" ;;
@@ -30,6 +44,9 @@ while getopts 'c:hm:p:P:t:v' OPTION; do
         *) usage; exit 1 ;;
     esac
 done
+if [ -z "$port" ]; then 
+    port="$(getAPIConfigValue port)"
+fi
 
 # Check inputs.
 if [ -z "$channel" ] || [ -z "$message" ] || [ -z "$file" ] || [ -z "$port" ] || [ -z "$host" ]; then
@@ -38,11 +55,12 @@ if [ -z "$channel" ] || [ -z "$message" ] || [ -z "$file" ] || [ -z "$port" ] ||
 fi
 
 # Try to get the passphrase.
-passphrase="$(egrep -m 1 '^password=' "$file" | sed 's/^password=//')"
+passphrase="$(getAPIConfigValue password)"
 if [ -z "$passphrase" ]; then
     echo Couldn\'t identify passphrase.
     exit 2;
 fi
+
 
 # Send format to socket
 printf "%s %s %s" "$passphrase" "$channel" "$message" | ncat "$host" "$port"

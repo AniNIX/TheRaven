@@ -1,0 +1,43 @@
+#!/usr/bin/env python3
+
+# File: ravensend-daemon
+# 
+# Description: This daemon proxies Graylog-style webhooks to TheRaven
+# 
+# Package: AniNIX/ravensend
+# Copyright: WTFPL
+# 
+# Author: DarkFeather <ircs://aninix.net:6697/DarkFeather>
+
+# Thanks to https://towardsdatascience.com/intro-to-webhooks-and-how-to-receive-them-with-python-d5f6dd634476 for the tutorial 
+import socket
+import yaml
+from flask import Flask,request,json
+
+app = Flask(__name__)
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+configvars = []
+
+@app.route('/',methods=['POST'])
+def hello():
+
+    data = request.json
+    print(data["event"]["message"] + ' at ' + data["event"]["timestamp"])
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        try:
+            s.connect((configvars["server"],int(configvars["port"])))
+            s.settimeout(1)
+            mesg = configvars["password"] + ' #' + configvars["channel"] + ' ' + data["event"]["message"] + ' at ' + data["event"]["timestamp"] 
+            print(mesg)
+            s.send(mesg.encode())
+            print('Sent to TheRaven')
+        except: 
+            print('Could not send to TheRaven')
+    return data
+ 
+if __name__ == '__main__':
+    config = open('./ravensend-daemon.yml','r')
+    configvars = yaml.safe_load(config)
+    print(configvars)
+    config.close()
+    app.run(host='0.0.0.0',port=configvars["webhookport"],debug=False)

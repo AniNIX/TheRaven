@@ -1,0 +1,5 @@
+channel: test123
+password: sample
+port: 9902
+server: 127.0.0.1
+webhookport: 8374

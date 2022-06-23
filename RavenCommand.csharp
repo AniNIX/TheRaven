@@ -126,17 +126,9 @@ namespace AniNIX.TheRaven {
                     }
                     connection.Write(send);
                     return;
-                case "r.heartbeat":
-                    try {
-                        String[] byLine = ExecuteCommand.Run("heartbeat-client").Split('\n');
-                        for (int i = 0; i < byLine.Length; i++) {
-                            send.PrivMsg(byLine[i],incoming.user);
-                            connection.Write(send);
-                        }
-                    } catch (Exception e) {
-                        e.ToString();
-                        send.PrivMsg("Can't get heartbeat",incoming.user);
-                    }
+                case "r.ip":
+                    send.PrivMsg(ExecuteCommand.Run("curl -s 10.0.1.1:80 | grep \"WAN IP\" | cut -f 7 -d \">\" | cut -f 1 -d \"<\""),(incoming.target.Equals(theRaven.Nick))?incoming.user:incoming.target);
+                    connection.Write(send);
                     return;
                 case "r.searches": 
                     send.PrivMsg(theRaven.searchesIndex,(incoming.target.Equals(theRaven.Nick))?incoming.user:incoming.target);

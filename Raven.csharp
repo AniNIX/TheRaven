@@ -26,7 +26,7 @@ namespace AniNIX.TheRaven {
         public List<String> channels; //This is the list of channels to join
         public List<String> whitelist; //This is the list of admin users.
         public List<String> blacklist; // This is the list of blocked people.
-        public String helpText = "Available commands are r.d <dice test>, r.magic8, r.math <math problem>, r.msg <memo for admin>, r.raven, r.searches, r.tinyurl <url>, r.wikidiff \"one\" \"other\", and r.uptime";
+        public String helpText = "Available commands are r.d <dice test>, r.ip, r.magic8, r.math <math problem>, r.msg <memo for admin>, r.raven, r.searches, r.tinyurl <url>, r.wikidiff \"one\" \"other\", and r.uptime";
         // This is the text to send when people ask for help -- this is configurable to allow for skinning	
         public List<String> searches; //These are the searches
         public String searchesIndex; //This is the helptext for the searches

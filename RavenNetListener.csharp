@@ -13,6 +13,7 @@ namespace AniNIX.TheRaven {
     public class RavenNetListener {
 
         private String _key;
+        private int _port;
         private Connection _ircdConnection;
 
         private void _RavenSend(Connection ircdConnection, String channel, String message) {
@@ -26,9 +27,9 @@ namespace AniNIX.TheRaven {
             while (true) {
                 try
                 {
-                    // Open a new listener on localhost port 9501
-                    IPAddress ipAddress = IPAddress.Parse("127.0.0.1");
-                    TcpListener listener = new TcpListener(ipAddress, 9501);
+                    // Open a new listener on port
+                    IPAddress ipAddress = IPAddress.Parse("0.0.0.0");
+                    TcpListener listener = new TcpListener(ipAddress, this._port );
                     listener.Start();
                     // Accept all connections
                     while (true)
@@ -40,6 +41,7 @@ namespace AniNIX.TheRaven {
                         string received = "";
                         for (int i = 0; i < size; i++)
                             received += Convert.ToChar(data[i]);
+                        ReportMessage.Log(Verbosity.Verbose,String.Format("RavenNetListener received: [{0}]",received));
                         String[] bySpace = received.Split(' ');
                         // If the key matches, ... 
                         if (this._key.Equals(bySpace[0])) {
@@ -73,8 +75,9 @@ namespace AniNIX.TheRaven {
             ReportMessage.Log(Verbosity.Verbose,"Started.");
         }
 
-        public RavenNetListener(String key) {
+        public RavenNetListener(String key, int port) {
             this._key = key;
+            this._port = port;
         }
     }
 }

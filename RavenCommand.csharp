@@ -127,7 +127,7 @@ namespace AniNIX.TheRaven {
                     connection.Write(send);
                     return;
                 case "r.ip":
-                    send.PrivMsg(ExecuteCommand.Run("curl -s 10.0.1.1:80 | grep \"WAN IP\" | cut -f 7 -d \">\" | cut -f 1 -d \"<\""),(incoming.target.Equals(theRaven.Nick))?incoming.user:incoming.target);
+                    send.PrivMsg(ExecuteCommand.Run("curl -s $(ip r list | grep default | cut -f 3 -d \" \"):80 | grep \"WAN IP\" | cut -f 13 -d \">\" | cut -f 1 -d \"<\""),(incoming.target.Equals(theRaven.Nick))?incoming.user:incoming.target);
                     connection.Write(send);
                     return;
                 case "r.searches": 

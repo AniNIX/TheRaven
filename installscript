@@ -1,0 +1,8 @@
+pre_install() {
+  groupadd raven &>/dev/null
+  useradd -g raven -s /bin/false raven &> /dev/null
+}
+
+pre_remove() {
+  getent passwd raven &>/dev/null && userdel raven &> /dev/null
+}

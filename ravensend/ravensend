@@ -28,7 +28,7 @@ function getAPIConfigValue() {
     # Get the api config value
     # param attr: the attribute to look for
     # returns: the attribute's value
-    egrep -A 10 '^\[ API \]$' "$file" | egrep -m 1 '^'"$1"'=' | sed 's/^'"$1"'=//'
+    grep -A 10 -E '^\[ API \]$' "$file" | grep -m 1 -E '^'"$1"'=' | sed 's/^'"$1"'=//'
 }
 
 # Parse arguments

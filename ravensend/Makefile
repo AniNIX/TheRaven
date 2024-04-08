@@ -19,15 +19,15 @@ install: compile
 	mkdir -p ${pkgdir}/usr/local/etc/
 	install -m 0640 -o raven -g raven ./ravensend-daemon.yml ${pkgdir}/usr/local/etc/
 
+diff:
+	for i in ${LIST}; do diff /usr/local/bin/$$i $$i; done
+	diff ${pkgdir}/usr/lib/systemd/system/ravensend-daemon.service ./ravensend-daemon.service
+
 reverse: ${pkgdir}/usr/lib/systemd/system/ravensend-daemon.service
 	cp ${pkgdir}/usr/lib/systemd/system/ravensend-daemon.service .
-	for i in ${LIST}; do cp ${pkgdir}/usr/lib/systemd/system/$$i .; done
+	for i in ${LIST}; do cp ${pkgdir}/usr/local/bin/$$i .; done
 
 checkperm: ${pkgdir}/opt/raven.mono
 	for i in ${LIST}; do chown -R raven: ${pkgdir}/usr/local/bin/$$i; chmod 0755 ${pkgdir}/usr/local/bin/$$i; done
 	chown raven: ${pkgdir}/usr/lib/systemd/system/ravensend-daemon.service
 	chmod 0644 ${pkgdir}/usr/lib/systemd/system/ravensend-daemon.service
-
-diff: 
-	for i in ${LIST}; do diff ${pkgdir}/usr/lib/systemd/system/$$i $$i; done
-	diff ${pkgdir}/usr/lib/systemd/system/ravensend-daemon.service ./ravensend-daemon.service

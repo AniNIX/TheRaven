@@ -22,15 +22,13 @@ configvars = []
 def hello():
 
     data = request.json
-    print(data["event"]["message"] + ' at ' + data["event"]["timestamp"])
+    notification = data["event"]["message"] + ' at ' + data["event"]["timestamp"] + ' -- ' + data["event"]["key"]
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         try:
             s.connect((configvars["server"],int(configvars["port"])))
             s.settimeout(1)
-            mesg = configvars["password"] + ' #' + configvars["channel"] + ' ' + data["event"]["message"] + ' at ' + data["event"]["timestamp"] 
-            print(mesg)
+            mesg = configvars["password"] + ' #' + configvars["channel"] + ' ' + notification
             s.send(mesg.encode())
-            print('Sent to TheRaven')
         except: 
             print('Could not send to TheRaven')
     return data

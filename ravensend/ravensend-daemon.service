@@ -1,6 +1,6 @@
 [Unit]
 Description=AniNIX/ravensend Daemon
-After=network.target
+After=network.target raven.service
 
 [Service]
 ExecStart=/usr/local/bin/ravensend-daemon

@@ -84,7 +84,7 @@ namespace AniNIX.TheRaven {
                     if (bySpace.Length < 2) {
 
                     } else {
-                        send.PrivMsg(ExecuteCommand.Run(String.Format("/bin/bash /usr/local/src/TheRaven/math-support.bash \"{0}\"",incoming.message.Replace("r.math ","").Replace("'","").Replace("\"",""))),(incoming.target.Equals(theRaven.Nick))?incoming.user:incoming.target);
+                        send.PrivMsg(ExecuteCommand.Run(String.Format("/bin/bash /opt/aninix/TheRaven/math-support.bash \"{0}\"",incoming.message.Replace("r.math ","").Replace("'","").Replace("\"",""))),(incoming.target.Equals(theRaven.Nick))?incoming.user:incoming.target);
                     }
                     connection.Write(send);
                     return;
@@ -127,7 +127,7 @@ namespace AniNIX.TheRaven {
                     connection.Write(send);
                     return;
                 case "r.ip":
-                    send.PrivMsg(ExecuteCommand.Run("curl -s $(ip r list | grep default | cut -f 3 -d \" \"):80 | grep \"WAN IP\" | cut -f 13 -d \">\" | cut -f 1 -d \"<\""),(incoming.target.Equals(theRaven.Nick))?incoming.user:incoming.target);
+                    send.PrivMsg(ExecuteCommand.Run("/bin/bash /opt/aninix/TheRaven/ip.bash"),(incoming.target.Equals(theRaven.Nick))?incoming.user:incoming.target);
                     connection.Write(send);
                     return;
                 case "r.searches": 

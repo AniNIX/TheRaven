@@ -283,7 +283,7 @@ namespace AniNIX.TheRaven {
                     if (response.msgCode.Equals("PRIVMSG") && !String.IsNullOrWhiteSpace(response.message) && (response.target.Equals(Nick) || response.message.StartsWith(String.Format("{0}:",Nick)) || response.message.EndsWith(String.Format("{0}!",Nick)) || response.message.EndsWith(String.Format("{0}?",Nick)) || response.message.EndsWith(String.Format("{0}.",Nick)) || response.message.EndsWith(String.Format("{0}",Nick)))) {
                         IRCClientMessage send = new IRCClientMessage();
                         try {
-                            String aliceResponse = ExecuteCommand.Run(String.Format("bash ./chatbot-support.bash \"{0}\" {1}",response.message.Replace("'","").Replace("\"","").Split('\n')[0].Trim(),Nick)).Trim();
+                            String aliceResponse = ExecuteCommand.Run(String.Format("bash /opt/aninix/TheRaven/chatbot-support.bash \"{0}\" {1}",response.message.Replace("'","").Replace("\"","").Split('\n')[0].Trim(),Nick)).Trim();
                             if (String.IsNullOrWhiteSpace(aliceResponse)) throw new Exception("No response from ALICE chatbot service");
                             send.PrivMsg(aliceResponse,(response.target.Equals(Nick))?response.user:response.target);
                         } catch (Exception e) {

@@ -1,5 +1,5 @@
 # Maintainer: DarkFeather <ircs://aninix.net:6697/darkfeather>
-depends=('python' 'python-yaml' 'python-flask' 'bash' 'nmap>=7.91-1')
+depends=('python' 'python-yaml' 'python-flask' 'bash' 'nmap>=7.91-1' 'TheRaven')
 makedepends=('make>=4.2' 'Uniglot')
 checkdepends=()
 optdepends=()
@@ -17,7 +17,7 @@ license=('custom')
 groups=()
 provides=("${pkgname}")
 conflicts=()
-replaces=("${pkgname,,}", "aninix-${pkgname,,}")
+replaces=("${pkgname,,}" "aninix-${pkgname,,}")
 backup=()
 options=()
 install=

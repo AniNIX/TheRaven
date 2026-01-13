@@ -4,12 +4,11 @@ makedepends=('make>=4.2' 'pwgen' 'Uniglot')
 checkdepends=()
 optdepends=()
 pkgname="$(git config remote.origin.url | rev | cut -f 1 -d '/' | rev | sed 's/.git$//')"
-pkgver="$(git describe --tag --abbrev=0)"."$(git rev-parse --short HEAD)"
+pkgver="$(git describe --tag --abbrev=0)"."$(( `git log "$(git describe --tag --abbrev=0)"..HEAD | grep -c commit` + 1 ))"."$(git rev-parse --short HEAD)"
 pkgrel=1
 pkgrel() { 
     echo $(( `git log "$(git describe --tag --abbrev=0)"..HEAD | grep -c commit` + 1 ))
 }
-epoch="$(git log | grep -c commit)"
 pkgdesc="$(head -n 1 README.md)"
 arch=("x86_64")
 url="$(git config remote.origin.url | sed 's/.git$//')"

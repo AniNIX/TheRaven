@@ -1,6 +1,6 @@
 [Unit]
 Description=AniNIX/Raven | IRC Bot
-After=network.target
+After=network-online.target
 
 [Service]
 WorkingDirectory=/usr/local/etc/TheRaven
